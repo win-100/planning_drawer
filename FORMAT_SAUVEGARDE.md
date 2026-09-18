@@ -263,7 +263,11 @@ Les jalons globaux se placent dans `milestones` à la racine. Les jalons d'une l
   "yOffset": 0,
   "color": "#ef2d20",
   "shape": "diamond",
-  "size": 24
+  "size": 24,
+  "showVerticalLine": true,
+  "lineColor": "#ef2d20",
+  "lineWidth": 2,
+  "lineStyle": "dashed"
 }
 ```
 
@@ -272,7 +276,7 @@ Les jalons globaux se placent dans `milestones` à la racine. Les jalons d'une l
 | Global | `title` : tableau de chaînes | `id`, `date`, `color`, `yOffset`, optionnellement `sub` (tableau de sous-libellés), `shape` et `size`. |
 | Dans une lane | `label` : chaîne (les `\n` sont acceptés) | `id`, `date`, `color`, `yOffset`, optionnellement `shape` et `size`. |
 
-`shape` peut être `star` (valeur par défaut), `circle`, `square`, `diamond`, `plus` ou `multiply`. `size` est la taille du symbole en pixels, entre 8 et 80 (18 par défaut).
+`shape` peut être `star` (valeur par défaut), `circle`, `square`, `diamond`, `plus` ou `multiply`. `size` est la taille du symbole en pixels, entre 8 et 80 (18 par défaut). Activez `showVerticalLine` pour tracer une ligne verticale sur toute la hauteur du planning à la date du jalon. `lineColor` (par défaut, la couleur du jalon), `lineWidth` (1 à 12 px, 2 par défaut) et `lineStyle` (`solid`, `dashed` ou `dotted`) en définissent l’apparence.
 
 ## Overlays
 
