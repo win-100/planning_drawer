@@ -594,6 +594,21 @@ function moveSelectedToLane(laneId) {
   const isMilestone = selection.type.includes("milestone");
   const destination = laneId ? planningData.lanes.find(lane => lane.id === laneId) : null;
   if (found.lane === destination) return;
+  // A position reference is valid only within one lane. Resolve objects which
+  // reference the moved object just as if that object had been deleted, before
+  // moving it out of their lane.
+  setup();
+  const dependencyPlan = deletionDependencyPlan([{ item: found.object, lane: found.lane }]);
+  if (dependencyPlan.positionFixes.length) {
+    const count = dependencyPlan.positionFixes.length;
+    const message = [
+      `« ${objectTitle(found.object)} » sert de référence de position pour ${count} élément${count > 1 ? "s" : ""}.`,
+      `Changer sa lane remplacera ${count > 1 ? "ces liens" : "ce lien"} sans impacter les positions actuelles.`,
+      "Continuer ?"
+    ].join("\n\n");
+    if (!confirm(message)) { renderEditor(); return; }
+    applyDeletionDependencyPlan({ dateFixes: [], positionFixes: dependencyPlan.positionFixes });
+  }
   const sourceCollection = isMilestone ? (found.lane ? found.lane.milestones : planningData.milestones) : (found.lane ? found.lane.items : planningData.items);
   sourceCollection.splice(sourceCollection.indexOf(found.object), 1);
   if (isMilestone) {
