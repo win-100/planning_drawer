@@ -5,7 +5,6 @@ const editor = document.getElementById("editor");
 const workspace = document.getElementById("workspace");
 const saveButton = document.getElementById("btnSave");
 const saveLabel = document.getElementById("saveLabel");
-const saveAlert = document.getElementById("saveAlert");
 const addButton = document.getElementById("btnAdd");
 const addOptionsButton = document.getElementById("btnAddOptions");
 const addMenu = document.getElementById("addMenu");
@@ -608,7 +607,6 @@ function status() {
   saveButton.classList.toggle("is-dirty", isDirty);
   saveLabel.textContent = "Enregistrer";
   saveButton.title = isDirty ? message : "Enregistrer le planning dans ce navigateur";
-  saveAlert.textContent = isDirty ? "À enregistrer" : "";
   currentPlanningName.textContent = plan?.name || "Planning non enregistré";
   currentPlanningName.title = plan?.name || "Planning non enregistré";
   renamePlanButton.title = plan ? `Renommer « ${plan.name} »` : "Donner un nom au planning";
