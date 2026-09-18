@@ -35,8 +35,13 @@ Ce fichier peut être enregistré, par exemple, sous `mon-planning.json` puis im
       "text": "#101820",
       "muted": "#8c9397",
       "surface": "#ffffff",
-      "grid": "#e4e4e4",
       "danger": "#ef2d20"
+    },
+    "appearance": {
+      "timelineYear": "@primaryStrong",
+      "timelineMonth": "@primary",
+      "timelineGrid": "@muted",
+      "todayLine": "@danger"
     }
   },
   "itemTypes": {
@@ -102,7 +107,7 @@ Ce fichier peut être enregistré, par exemple, sous `mon-planning.json` puis im
 
 ### `theme`
 
-`preset` peut être `ocean`, `indigo`, `forest`, `sunset` ou `custom`. `colors` contient les rôles `primary`, `primaryStrong`, `primarySoft`, `accent`, `accentSoft`, `text`, `muted`, `surface`, `grid` et `danger`. Les styles, lanes, jalons, overlays et le fond peuvent utiliser un rôle avec `@` : par exemple `"fill": "@primarySoft"`. Une couleur hexadécimale reste une surcharge indépendante du thème.
+`preset` peut être `ocean`, `indigo`, `forest`, `sunset` ou `custom`. `colors` est le nuancier : `primary`, `primaryStrong`, `primarySoft`, `accent`, `accentSoft`, `text`, `muted`, `surface` et `danger`. `appearance` attribue une de ces couleurs à une partie du rendu, par exemple `timelineGrid: "@muted"`. Les styles, lanes, jalons, overlays et le fond peuvent eux aussi utiliser un rôle avec `@` : par exemple `"fill": "@primarySoft"`. Une couleur hexadécimale reste une surcharge indépendante du thème.
 
 ### `timeline`
 

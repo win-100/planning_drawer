@@ -12,23 +12,24 @@ const todayLineToggle = document.getElementById("toggleTodayLine");
 const dateDependenciesToggle = document.getElementById("toggleDateDependencies");
 const gridTimelineLevel = document.getElementById("gridTimelineLevel");
 const timelineLocale = document.getElementById("timelineLocale");
-const themeSelect = document.getElementById("themeSelect");
 const themeButton = document.getElementById("btnTheme");
 // A theme only contains semantic colour roles.  Planning objects may reference
 // one with "@primary" etc.; an ordinary #RRGGBB value is deliberately kept as
 // an element-level override.
 const THEME_PRESETS = {
-  ocean: { name: "Océan", colors: { primary: "#22a79f", primaryStrong: "#147b75", primarySoft: "#c8ece9", accent: "#e8ad72", accentSoft: "#f4cfad", text: "#101820", muted: "#8c9397", surface: "#ffffff", grid: "#e4e4e4", danger: "#ef2d20" } },
-  indigo: { name: "Indigo", colors: { primary: "#6366f1", primaryStrong: "#4338ca", primarySoft: "#e0e7ff", accent: "#db2777", accentSoft: "#fce7f3", text: "#172033", muted: "#64748b", surface: "#ffffff", grid: "#e2e8f0", danger: "#dc2626" } },
-  forest: { name: "Forêt", colors: { primary: "#2f855a", primaryStrong: "#166534", primarySoft: "#dcfce7", accent: "#ca8a04", accentSoft: "#fef3c7", text: "#17221a", muted: "#64748b", surface: "#ffffff", grid: "#dfe9e1", danger: "#dc2626" } },
-  sunset: { name: "Coucher de soleil", colors: { primary: "#ea580c", primaryStrong: "#c2410c", primarySoft: "#ffedd5", accent: "#be185d", accentSoft: "#fce7f3", text: "#2b1b14", muted: "#78716c", surface: "#fffdf9", grid: "#eadfd7", danger: "#dc2626" } }
+  ocean: { name: "Océan", colors: { primary: "#22a79f", primaryStrong: "#147b75", primarySoft: "#c8ece9", accent: "#e8ad72", accentSoft: "#f4cfad", text: "#101820", muted: "#8c9397", surface: "#ffffff", danger: "#ef2d20" } },
+  indigo: { name: "Indigo", colors: { primary: "#6366f1", primaryStrong: "#4338ca", primarySoft: "#e0e7ff", accent: "#db2777", accentSoft: "#fce7f3", text: "#172033", muted: "#64748b", surface: "#ffffff", danger: "#dc2626" } },
+  forest: { name: "Forêt", colors: { primary: "#2f855a", primaryStrong: "#166534", primarySoft: "#dcfce7", accent: "#ca8a04", accentSoft: "#fef3c7", text: "#17221a", muted: "#64748b", surface: "#ffffff", danger: "#dc2626" } },
+  sunset: { name: "Coucher de soleil", colors: { primary: "#ea580c", primaryStrong: "#c2410c", primarySoft: "#ffedd5", accent: "#be185d", accentSoft: "#fce7f3", text: "#2b1b14", muted: "#78716c", surface: "#fffdf9", danger: "#dc2626" } }
 };
-const THEME_COLOR_OPTIONS = [["primary", "Principale"], ["primaryStrong", "Principale foncée"], ["primarySoft", "Principale claire"], ["accent", "Accent"], ["accentSoft", "Accent clair"], ["text", "Texte"], ["muted", "Secondaire"], ["surface", "Surface"], ["grid", "Quadrillage"], ["danger", "Alerte"]];
+const THEME_COLOR_OPTIONS = [["primary", "Couleur principale"], ["primaryStrong", "Principale — foncée"], ["primarySoft", "Principale — claire"], ["accent", "Couleur d’accent"], ["accentSoft", "Accent — clair"], ["text", "Texte sombre"], ["muted", "Neutre / secondaire"], ["surface", "Surface claire"], ["danger", "Alerte / échéance critique"]];
+const THEME_APPEARANCE_OPTIONS = [["timelineYear", "Frise — années"], ["timelineYearAlternate", "Frise — années alternées"], ["timelineQuarter", "Frise — trimestres"], ["timelineMonth", "Frise — mois"], ["timelineWeek", "Frise — semaines"], ["timelineGrid", "Quadrillage vertical"], ["todayLine", "Ligne d’aujourd’hui"], ["dependencyIncoming", "Dépendance entrante"], ["dependencyOutgoing", "Dépendance sortante"], ["dependencyNeutral", "Dépendance neutre"]];
+const DEFAULT_THEME_APPEARANCE = { timelineYear: "@primaryStrong", timelineYearAlternate: "@primary", timelineQuarter: "@primaryStrong", timelineMonth: "@primary", timelineWeek: "@primarySoft", timelineGrid: "@muted", todayLine: "@danger", dependencyIncoming: "@accent", dependencyOutgoing: "@primaryStrong", dependencyNeutral: "@muted" };
 const timelineLevels = [
-  { key: "year", toggle: document.getElementById("toggleYearTimeline"), h: 20, fill: "@primaryStrong", alt: "@primary", cls: "year-label" },
-  { key: "quarter", toggle: document.getElementById("toggleQuarterTimeline"), h: 24, fill: "@primaryStrong", cls: "quarter-label" },
-  { key: "month", toggle: document.getElementById("toggleMonthTimeline"), h: 40, fill: "@primary", cls: "month-label" },
-  { key: "week", toggle: document.getElementById("toggleWeekTimeline"), h: 22, fill: "@primarySoft", cls: "week-label" }
+  { key: "year", toggle: document.getElementById("toggleYearTimeline"), h: 20, fillRole: "timelineYear", altRole: "timelineYearAlternate", cls: "year-label" },
+  { key: "quarter", toggle: document.getElementById("toggleQuarterTimeline"), h: 24, fillRole: "timelineQuarter", cls: "quarter-label" },
+  { key: "month", toggle: document.getElementById("toggleMonthTimeline"), h: 40, fillRole: "timelineMonth", cls: "month-label" },
+  { key: "week", toggle: document.getElementById("toggleWeekTimeline"), h: 22, fillRole: "timelineWeek", cls: "week-label" }
 ];
 const defaultTimelineSettings = () => ({
   levels: { year: true, quarter: false, month: true, week: false },
@@ -56,7 +57,7 @@ function emptyPlanning() {
     range: { start: `${year}-01-01`, end: `${year}-12-31` },
     layout: { width: 1500, left: 86, right: 16, topMonths: 8, monthHeight: 40, timelineTop: 58, lanesTop: 160, laneGap: 5, lanePaddingBottom: 10, defaultItemHeight: 30 },
     monthLocale: "fr-FR", items: [], milestones: [], lanes: [], overlays: [], timeline: defaultTimelineSettings(),
-    theme: { preset: "ocean", colors: clone(THEME_PRESETS.ocean.colors) },
+    theme: { preset: "ocean", colors: clone(THEME_PRESETS.ocean.colors), appearance: clone(DEFAULT_THEME_APPEARANCE) },
     itemTypes: { task: { fill: "@surface", stroke: "@primary", textColor: "@text", strokeWidth: 1.4, shape: "chevron", h: 30, textClass: "task-label" } }
   };
 }
@@ -239,10 +240,13 @@ function removeSelectedObject() {
   renderEditor();
 }
 function themeColors() { return planningData.theme?.colors || THEME_PRESETS.ocean.colors; }
+function themeAppearance(role) { return planningData.theme?.appearance?.[role] || DEFAULT_THEME_APPEARANCE[role] || "@text"; }
 function resolveColor(value, fallback = "#000000") {
   const token = typeof value === "string" && value.match(/^@([A-Za-z][A-Za-z0-9]*)$/);
   const result = token ? themeColors()[token[1]] : value;
-  return /^#[0-9a-f]{6}$/i.test(result || "") ? result : fallback;
+  // Preserve CSS colours from older imported files (for example rgb(...)).
+  // Theme entries themselves are validated as hexadecimal during normalisation.
+  return typeof result === "string" && result.trim() ? result : fallback;
 }
 function applyThemeToApp() {
   const colors = themeColors();
@@ -250,12 +254,6 @@ function applyThemeToApp() {
   document.documentElement.style.setProperty("--teal", colors.primary);
   document.documentElement.style.setProperty("--teal-line", colors.primary);
   document.documentElement.style.setProperty("--teal-light", colors.primarySoft);
-}
-function refreshThemePicker() {
-  themeSelect.innerHTML = "";
-  Object.entries(THEME_PRESETS).forEach(([id, preset]) => themeSelect.add(new Option(preset.name, id)));
-  themeSelect.add(new Option("Personnalisé", "custom"));
-  themeSelect.value = planningData.theme?.preset in THEME_PRESETS ? planningData.theme.preset : "custom";
 }
 function style(item) { return { ...(planningData.itemTypes?.[item.type] || {}), ...item }; }
 function allLaneItems() { return planningData.lanes.flatMap(lane => lane.items.map(item => ({ item, lane }))); }
@@ -467,7 +465,7 @@ function roundedDependencyPath(from, to, fromKey, toKey) {
 function drawDateDependencies(relatedOnly = false) {
   const selectedObject = current()?.object;
   const highlightDependencies = Boolean(selectedObject && editorSectionOpen("Informations"));
-  const colors = { incoming: "#d97706", outgoing: "#16877f", neutral: "#52666d" };
+  const colors = { incoming: resolveColor(themeAppearance("dependencyIncoming")), outgoing: resolveColor(themeAppearance("dependencyOutgoing")), neutral: resolveColor(themeAppearance("dependencyNeutral")) };
   const defs = el("defs");
   Object.entries(colors).forEach(([direction, fill]) => {
     const marker = el("marker", { id: `date-dependency-arrow-${direction}`, viewBox: "0 0 7 7", refX: 6.2, refY: 3.5, markerWidth: 5, markerHeight: 5, orient: "auto-start-reverse" });
@@ -487,12 +485,40 @@ function drawDateDependencies(relatedOnly = false) {
     svg.appendChild(el("path", { d: roundedDependencyPath(from, to, dependency.dateKey, key), fill: "none", stroke: colors[direction], "stroke-width": direction === "neutral" ? 1.15 : 2.8, "stroke-linecap": "round", "stroke-linejoin": "round", "marker-end": `url(#date-dependency-arrow-${direction})`, "pointer-events": "none", class: `date-dependency-link ${direction}` }));
   }));
 }
-function render() { setup(); svg.innerHTML = ""; const timeline = planningData.timeline, exportOpacity = Math.max(0, Math.min(1, Number(timeline.backgroundOpacity) || 0)); svg.appendChild(el("rect", { x: 0, y: 0, width: geometry.W, height: geometry.H, fill: resolveColor(timeline.backgroundColor, resolveColor("@surface")), "fill-opacity": 1, "data-export-opacity": exportOpacity, class: "planning-background", "pointer-events": "none" })); let y = geometry.top; visibleLevels().forEach((level, n) => { const p = periods(level.key); p.slice(0, -1).forEach((v, i) => { const x1 = x(v[1]), x2 = x(p[i + 1][1]); svg.append(el("rect", { x: x1, y, width: x2 - x1, height: level.height, fill: resolveColor(level.alt && i % 2 ? level.alt : level.fill), stroke: "#fff" }), el("text", { x: (x1 + x2) / 2, y: y + level.height / 2, "dominant-baseline": "middle", "text-anchor": "middle", class: level.cls }, v[0])); }); y += level.height + (n < visibleLevels().length - 1 ? 2 : 0); }); const gp = gridTimelineLevel.disabled ? [] : periods(gridTimelineLevel.value); gp.slice(0, -1).forEach(v => svg.appendChild(el("line", { x1: x(v[1] < planningData.range.start ? planningData.range.start : v[1]), y1: geometry.timelineTop, x2: x(v[1] < planningData.range.start ? planningData.range.start : v[1]), y2: geometry.timelineBottom, stroke: resolveColor("@grid") }))); planningData.overlays.forEach(drawOverlayHandle); planningData.milestones.forEach(m => drawMilestone(m)); planningData.items.forEach(item => drawItem(null, item)); planningData.lanes.forEach(lane => { const bg = lane.backgroundColor ?? lane.background; if (bg && (lane.backgroundOpacity ?? 1) > 0) svg.appendChild(el("rect", { x: geometry.left, y: lane._y, width: geometry.timelineW, height: lane._h, fill: resolveColor(bg), "fill-opacity": lane.backgroundOpacity ?? 1, "pointer-events": "none" })); if (lane.key !== "change") { const g = group("lane", lane, null, 43); g.appendChild(el("rect", { x: 14, y: lane._y, width: 58, height: lane._h, fill: resolveColor(lane.labelColor, resolveColor("@muted")), class: "planning-shape" })); const label = el("g", { transform: `translate(44 ${lane._y + lane._h / 2}) rotate(-90)` }); textLines(label, lane.label, 0, -4, "lane-label", 18); g.appendChild(label); svg.appendChild(g); } lane.items.forEach(i => drawItem(lane, i)); lane.milestones.forEach(m => drawMilestone(m, lane)); }); planningData.overlays.forEach(drawOverlay); const showSelectedDateDependencies = Boolean(selection && ["phase", "task", "global-milestone", "lane-milestone"].includes(selection.type) && editorSectionOpen("Informations")); if (dateDependenciesToggle.checked || showSelectedDateDependencies) drawDateDependencies(!dateDependenciesToggle.checked); const today = dateIso(); if (todayLineToggle.checked && today >= planningData.range.start && today <= planningData.range.end) svg.appendChild(el("line", { x1: x(today), y1: 0, x2: x(today), y2: geometry.H, stroke: resolveColor("@danger"), "stroke-width": 2, "pointer-events": "none" })); }
+function render() { setup(); svg.innerHTML = ""; const timeline = planningData.timeline, exportOpacity = Math.max(0, Math.min(1, Number(timeline.backgroundOpacity) || 0)); svg.appendChild(el("rect", { x: 0, y: 0, width: geometry.W, height: geometry.H, fill: resolveColor(timeline.backgroundColor, resolveColor("@surface")), "fill-opacity": 1, "data-export-opacity": exportOpacity, class: "planning-background", "pointer-events": "none" })); let y = geometry.top; visibleLevels().forEach((level, n) => { const p = periods(level.key); p.slice(0, -1).forEach((v, i) => { const x1 = x(v[1]), x2 = x(p[i + 1][1]); svg.append(el("rect", { x: x1, y, width: x2 - x1, height: level.height, fill: resolveColor(themeAppearance(level.altRole && i % 2 ? level.altRole : level.fillRole)), stroke: "#fff" }), el("text", { x: (x1 + x2) / 2, y: y + level.height / 2, "dominant-baseline": "middle", "text-anchor": "middle", class: level.cls }, v[0])); }); y += level.height + (n < visibleLevels().length - 1 ? 2 : 0); }); const gp = gridTimelineLevel.disabled ? [] : periods(gridTimelineLevel.value); gp.slice(0, -1).forEach(v => svg.appendChild(el("line", { x1: x(v[1] < planningData.range.start ? planningData.range.start : v[1]), y1: geometry.timelineTop, x2: x(v[1] < planningData.range.start ? planningData.range.start : v[1]), y2: geometry.timelineBottom, stroke: resolveColor(themeAppearance("timelineGrid")) }))); planningData.overlays.forEach(drawOverlayHandle); planningData.milestones.forEach(m => drawMilestone(m)); planningData.items.forEach(item => drawItem(null, item)); planningData.lanes.forEach(lane => { const bg = lane.backgroundColor ?? lane.background; if (bg && (lane.backgroundOpacity ?? 1) > 0) svg.appendChild(el("rect", { x: geometry.left, y: lane._y, width: geometry.timelineW, height: lane._h, fill: resolveColor(bg), "fill-opacity": lane.backgroundOpacity ?? 1, "pointer-events": "none" })); if (lane.key !== "change") { const g = group("lane", lane, null, 43); g.appendChild(el("rect", { x: 14, y: lane._y, width: 58, height: lane._h, fill: resolveColor(lane.labelColor, resolveColor("@muted")), class: "planning-shape" })); const label = el("g", { transform: `translate(44 ${lane._y + lane._h / 2}) rotate(-90)` }); textLines(label, lane.label, 0, -4, "lane-label", 18); g.appendChild(label); svg.appendChild(g); } lane.items.forEach(i => drawItem(lane, i)); lane.milestones.forEach(m => drawMilestone(m, lane)); }); planningData.overlays.forEach(drawOverlay); const showSelectedDateDependencies = Boolean(selection && ["phase", "task", "global-milestone", "lane-milestone"].includes(selection.type) && editorSectionOpen("Informations")); if (dateDependenciesToggle.checked || showSelectedDateDependencies) drawDateDependencies(!dateDependenciesToggle.checked); const today = dateIso(); if (todayLineToggle.checked && today >= planningData.range.start && today <= planningData.range.end) svg.appendChild(el("line", { x1: x(today), y1: 0, x2: x(today), y2: geometry.H, stroke: resolveColor(themeAppearance("todayLine")), "stroke-width": 2, "pointer-events": "none" })); }
 
 function current() { if (!selection) return null; if (selection.type === "global-milestone") return { object: planningData.milestones.find(v => v.id === selection.itemId) }; if (selection.type === "overlay") return { object: planningData.overlays.find(v => v.id === selection.itemId) }; if (["phase", "task"].includes(selection.type) && !selection.laneId) return { object: planningData.items.find(v => v.id === selection.itemId), lane: null }; const lane = planningData.lanes.find(v => v.id === (selection.laneId || selection.itemId)); if (!lane) return null; if (selection.type === "lane") return { object: lane, lane }; return { object: (selection.type === "lane-milestone" ? lane.milestones : lane.items).find(v => v.id === selection.itemId), lane }; }
 function color(v) { return resolveColor(v); }
 function hasOutline(value) { return Boolean(value && value !== "none"); }
 function input(label, key, value, type = "text", options) { const wrap = document.createElement("label"); wrap.className = type === "checkbox" ? "editor-check" : "editor-field"; const field = type === "textarea" ? document.createElement("textarea") : document.createElement(type === "select" ? "select" : "input"); field.dataset.key = key; if (type === "checkbox") { field.type = "checkbox"; field.checked = !!value; wrap.append(field, document.createTextNode(label)); } else { wrap.append(label, field); field.value = value ?? ""; if (type !== "textarea" && type !== "select") field.type = type; if (options) options.forEach(([v, title]) => field.add(new Option(title, v, false, v === value))); } return wrap; }
+function palettePicker(label, value, options, onChange, { customLabel } = {}) {
+  const wrap = document.createElement("div"); wrap.className = "palette-picker";
+  wrap.append(document.createTextNode(label));
+  const button = document.createElement("button"); button.type = "button"; button.className = "palette-picker-button"; button.setAttribute("aria-haspopup", "listbox"); button.setAttribute("aria-expanded", "false");
+  const list = document.createElement("div"); list.className = "palette-picker-list"; list.hidden = true; list.setAttribute("role", "listbox");
+  const optionFor = key => options.find(([candidate]) => candidate === key);
+  const paintButton = key => {
+    const option = optionFor(key), isCustom = !option;
+    button.replaceChildren();
+    const swatch = document.createElement("span"); swatch.className = "palette-swatch";
+    swatch.style.background = isCustom ? "linear-gradient(135deg, #fff 45%, #94a3b8 46%, #94a3b8 54%, #fff 55%)" : resolveColor(`@${key}`);
+    button.append(swatch, document.createTextNode(option?.[1] || customLabel || "Couleur personnalisée"));
+  };
+  const close = () => { list.hidden = true; button.setAttribute("aria-expanded", "false"); };
+  const choose = key => { paintButton(key); close(); onChange(key); };
+  options.forEach(([key, title]) => {
+    const option = document.createElement("button"); option.type = "button"; option.className = "palette-picker-option"; option.setAttribute("role", "option"); option.setAttribute("aria-selected", String(key === value));
+    const swatch = document.createElement("span"); swatch.className = "palette-swatch"; swatch.style.background = resolveColor(`@${key}`);
+    option.append(swatch, document.createTextNode(title)); option.onclick = () => choose(key); list.appendChild(option);
+  });
+  if (customLabel) {
+    const custom = document.createElement("button"); custom.type = "button"; custom.className = "palette-picker-option"; custom.setAttribute("role", "option");
+    const swatch = document.createElement("span"); swatch.className = "palette-swatch"; swatch.style.background = "linear-gradient(135deg, #fff 45%, #94a3b8 46%, #94a3b8 54%, #fff 55%)";
+    custom.append(swatch, document.createTextNode(customLabel)); custom.onclick = () => choose("custom"); list.appendChild(custom);
+  }
+  paintButton(value); button.onclick = event => { event.stopPropagation(); const opening = list.hidden; document.querySelectorAll(".palette-picker-list").forEach(menu => menu.hidden = true); list.hidden = !opening; button.setAttribute("aria-expanded", String(opening)); };
+  wrap.append(button, list); return wrap;
+}
 function fieldGrid(...fields) { const grid = document.createElement("div"); grid.className = "editor-grid"; grid.append(...fields); return grid; }
 function editorSectionType() {
   if (selection?.type?.includes("milestone")) return "milestone";
@@ -649,8 +675,9 @@ function normalise(data) {
   const requestedPreset = data.theme?.preset;
   const preset = THEME_PRESETS[requestedPreset] || THEME_PRESETS.ocean;
   const presetId = THEME_PRESETS[requestedPreset] ? requestedPreset : data.theme ? "custom" : "ocean";
-  data.theme = { preset: presetId, colors: { ...preset.colors, ...(data.theme?.colors || {}) } };
+  data.theme = { preset: presetId, colors: { ...preset.colors, ...(data.theme?.colors || {}) }, appearance: { ...DEFAULT_THEME_APPEARANCE, ...(data.theme?.appearance || {}) } };
   Object.keys(data.theme.colors).forEach(key => { if (!/^#[0-9a-f]{6}$/i.test(data.theme.colors[key])) data.theme.colors[key] = preset.colors[key] || "#000000"; });
+  Object.keys(data.theme.appearance).forEach(key => { const value = data.theme.appearance[key], token = typeof value === "string" ? value.slice(1) : ""; if (!/^@[A-Za-z][A-Za-z0-9]*$/.test(value || "") || !data.theme.colors[token]) data.theme.appearance[key] = DEFAULT_THEME_APPEARANCE[key] || "@text"; });
   if (typeof data.monthLocale !== "string" || !data.monthLocale) data.monthLocale = "fr-FR";
   const defaults = defaultTimelineSettings();
   data.timeline ||= {};
@@ -696,7 +723,7 @@ function askPlanName(message, suggested = "") {
 }
 function applyPlanning(data, { activeId = null, dirty = false, imported = false } = {}) {
   planningData = normalise(clone(data)); activePlanId = activeId;
-  applyThemeToApp(); refreshThemePicker();
+  applyThemeToApp();
   restoreTimelineSettings();
   referencePicker = null; selection = null; isDirty = dirty; importedVersion = imported;
   refreshSavedPlanList(); gridChoices(); render(); renderEditor(); status();
@@ -835,8 +862,7 @@ renderEditor = function () {
   if (editingStyleName === activeStyle) {
     const impact = document.createElement("p"); impact.className = "impact-note"; impact.textContent = styleUsageCount(activeStyle) + " élément" + (styleUsageCount(activeStyle) > 1 ? "s seront" : " sera") + " impacté" + (styleUsageCount(activeStyle) > 1 ? "s" : "") + " par la modification de ce style.";
     const linkedToken = /^@([A-Za-z][A-Za-z0-9]*)$/.exec(shared.fill || "")?.[1] || "custom";
-    const themeLink = input("Fond lié au thème", "theme-fill", linkedToken, "select", [["custom", "Couleur personnalisée"], ...THEME_COLOR_OPTIONS]);
-    themeLink.querySelector("select").onchange = event => { if (event.target.value !== "custom") { updateSharedStyle(activeStyle, "fill", `@${event.target.value}`); renderEditor(); } };
+    const themeLink = palettePicker("Fond lié au thème", linkedToken, THEME_COLOR_OPTIONS, token => { if (token !== "custom") { updateSharedStyle(activeStyle, "fill", `@${token}`); renderEditor(); } }, { customLabel: "Couleur personnalisée" });
     styleContent.push(impact, themeLink, fieldGrid(input("Couleur de fond", "fill", color(shared.fill), "color"), input("Couleur du texte", "textColor", color(shared.textColor), "color")), input("Forme", "shape", shared.shape ?? "rect", "select", [["chevron", "Chevron"], ["rect", "Rectangle"]]), fieldGrid(input("Contour", "outline", hasOutline(shared.stroke), "checkbox"), input("Pointillés", "dashed", Boolean(shared.strokeDasharray), "checkbox")), input("Couleur du contour", "stroke", color(shared.stroke), "color"));
   }
   const sharedStyle = section("Style", styleContent, false);
@@ -905,15 +931,20 @@ function renderTimelineEditor() {
 }
 function setThemePreset(id) {
   if (!THEME_PRESETS[id]) return;
-  planningData.theme = { preset: id, colors: clone(THEME_PRESETS[id].colors) };
-  applyThemeToApp(); refreshThemePicker();
+  planningData.theme = { preset: id, colors: clone(THEME_PRESETS[id].colors), appearance: clone(planningData.theme.appearance || DEFAULT_THEME_APPEARANCE) };
+  applyThemeToApp();
   isDirty = true; importedVersion = false; status(); render();
 }
 function updateThemeColor(key, value) {
   if (!/^#[0-9a-f]{6}$/i.test(value)) return;
   planningData.theme.colors[key] = value;
   planningData.theme.preset = "custom";
-  applyThemeToApp(); refreshThemePicker();
+  applyThemeToApp();
+  isDirty = true; importedVersion = false; status(); render();
+}
+function updateThemeAppearance(key, token) {
+  if (!themeColors()[token]) return;
+  planningData.theme.appearance[key] = `@${token}`;
   isDirty = true; importedVersion = false; status(); render();
 }
 function renderThemeEditor() {
@@ -921,7 +952,7 @@ function renderThemeEditor() {
   const card = document.createElement("div"); card.className = "editor-card";
   const top = document.createElement("div"); top.className = "editor-heading"; top.append(document.createTextNode("Thème de couleurs"));
   const close = document.createElement("button"); close.textContent = "×"; close.title = "Fermer"; close.onclick = clear; top.appendChild(close); card.appendChild(top);
-  const note = document.createElement("p"); note.className = "impact-note"; note.textContent = "Les couleurs liées au thème se mettent à jour immédiatement. Les couleurs choisies directement sur un élément restent intactes.";
+  const note = document.createElement("p"); note.className = "impact-note"; note.textContent = "Le nuancier contient les couleurs disponibles. Leur usage dans le planning se règle séparément plus bas. Les couleurs choisies directement sur un élément restent intactes.";
   const preset = input("Palette de départ", "theme-preset", planningData.theme.preset, "select", [...Object.entries(THEME_PRESETS).map(([id, theme]) => [id, theme.name]), ["custom", "Personnalisé"]]);
   preset.querySelector("select").onchange = event => { if (event.target.value !== "custom") { setThemePreset(event.target.value); renderThemeEditor(); } };
   const colors = THEME_COLOR_OPTIONS.map(([key, label]) => {
@@ -929,7 +960,13 @@ function renderThemeEditor() {
     field.querySelector("input").oninput = event => updateThemeColor(key, event.target.value);
     return field;
   });
-  card.append(section("Palette", [note, preset, fieldGrid(...colors)], true));
+  card.append(section("Nuancier", [note, preset, fieldGrid(...colors)], true));
+  const appearanceFields = THEME_APPEARANCE_OPTIONS.map(([key, label]) => {
+    const token = /^@(.+)$/.exec(themeAppearance(key))?.[1] || "primary";
+    return palettePicker(label, token, THEME_COLOR_OPTIONS, selected => updateThemeAppearance(key, selected));
+  });
+  const appearanceNote = document.createElement("p"); appearanceNote.className = "hint"; appearanceNote.textContent = "Ces choix n’ajoutent aucune couleur : ils attribuent une couleur du nuancier à chaque partie du rendu.";
+  card.append(section("Attribution au planning", [appearanceNote, fieldGrid(...appearanceFields)], false));
   editor.appendChild(card); layout();
 }
 function pinEditorActions() {
@@ -980,7 +1017,7 @@ addMenu.onclick = event => {
   addPlanningObject(action.dataset.addType);
   closeAddMenu();
 };
-document.addEventListener("click", event => { if (!event.target.closest(".add-menu")) closeAddMenu(); if (!event.target.closest(".load-menu")) closeLoadMenu(); });
+document.addEventListener("click", event => { if (!event.target.closest(".add-menu")) closeAddMenu(); if (!event.target.closest(".load-menu")) closeLoadMenu(); if (!event.target.closest(".palette-picker")) document.querySelectorAll(".palette-picker-list").forEach(menu => menu.hidden = true); });
 document.addEventListener("keydown", event => { if (event.key === "Escape") { closeAddMenu(); closeLoadMenu(); } });
 
 // The most frequent creation path: double-click an empty area of a lane.
@@ -995,9 +1032,6 @@ svg.ondblclick = event => {
   if (!lane) return;
   event.preventDefault();
   addPlanningObject("item", { lane, date: dateAtX(local.x), yOffset: local.y - lane._y });
-};
-themeSelect.onchange = () => {
-  if (themeSelect.value !== "custom") setThemePreset(themeSelect.value);
 };
 themeButton.onclick = () => { selection = { type: "theme" }; renderEditor(); };
 readSavedPlans();
