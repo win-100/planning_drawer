@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version de build : 1.004 -->
+<!-- Version de build : 1.006 -->
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
@@ -659,12 +659,22 @@ button:hover {
           <input id="toggleWeekTimeline" type="checkbox" />
           Semaines
         </label>
-        <label class="grid-choice" for="gridTimelineLevel">
-          Quadrillage vertical
-          <select id="gridTimelineLevel">
+        <label class="grid-choice" for="primaryGridTimelineLevel">
+          Quadrillage vertical principal
+          <select id="primaryGridTimelineLevel">
             <option value="year">Années</option>
             <option value="quarter">Trimestres</option>
             <option value="month" selected>Mois</option>
+            <option value="week">Semaines</option>
+          </select>
+        </label>
+        <label class="grid-choice" for="secondaryGridTimelineLevel">
+          Quadrillage vertical secondaire
+          <select id="secondaryGridTimelineLevel">
+            <option value="" selected>Non affiché</option>
+            <option value="year">Années</option>
+            <option value="quarter">Trimestres</option>
+            <option value="month">Mois</option>
             <option value="week">Semaines</option>
           </select>
         </label>
@@ -696,7 +706,8 @@ const addOptionsButton = document.getElementById("btnAddOptions");
 const addMenu = document.getElementById("addMenu");
 const todayLineToggle = document.getElementById("toggleTodayLine");
 const dateDependenciesToggle = document.getElementById("toggleDateDependencies");
-const gridTimelineLevel = document.getElementById("gridTimelineLevel");
+const primaryGridTimelineLevel = document.getElementById("primaryGridTimelineLevel");
+const secondaryGridTimelineLevel = document.getElementById("secondaryGridTimelineLevel");
 const timelineLocale = document.getElementById("timelineLocale");
 const themeButton = document.getElementById("btnTheme");
 // A theme only contains semantic colour roles.  Planning objects may reference
@@ -712,8 +723,9 @@ const THEME_PRESETS = {
 // colours without prescribing where each one is used.
 const THEME_COLOR_OPTIONS = [["primary", "Principale"], ["primaryStrong", "Principale — foncée"], ["primarySoft", "Principale — claire"], ["secondary", "Secondaire"], ["secondaryStrong", "Secondaire — foncée"], ["secondarySoft", "Secondaire — claire"], ["accent", "Accent"], ["accentSoft", "Accent — clair"], ["text", "Texte principal"], ["textSecondary", "Texte secondaire"], ["textOnDark", "Texte sur fond sombre"], ["neutral", "Gris neutre"], ["neutralSoft", "Gris neutre — clair"], ["surface", "Fond principal"], ["surfaceAlt", "Fond alternatif"], ["border", "Bordure / quadrillage"], ["danger", "Alerte / échéance critique"], ["warning", "Attention"], ["success", "Succès / validation"]];
 const THEME_COLOR_GROUPS = [["Principale", ["primary", "primaryStrong", "primarySoft"]], ["Secondaire", ["secondary", "secondaryStrong", "secondarySoft"]], ["Accent", ["accent", "accentSoft"]], ["Texte", ["text", "textSecondary", "textOnDark"]], ["Neutres", ["neutral", "neutralSoft", "border"]], ["Fonds", ["surface", "surfaceAlt"]], ["États", ["danger", "warning", "success"]]];
-const THEME_APPEARANCE_OPTIONS = [["timelineYear", "Frise — années"], ["timelineYearAlternate", "Frise — années alternées"], ["timelineQuarter", "Frise — trimestres"], ["timelineQuarterAlternate", "Frise — trimestres alternés"], ["timelineMonth", "Frise — mois"], ["timelineMonthAlternate", "Frise — mois alternés"], ["timelineWeek", "Frise — semaines"], ["timelineWeekAlternate", "Frise — semaines alternées"], ["timelineGrid", "Quadrillage vertical"], ["todayLine", "Ligne d’aujourd’hui"], ["dependencyIncoming", "Dépendance entrante"], ["dependencyOutgoing", "Dépendance sortante"], ["dependencyNeutral", "Dépendance neutre"]];
-const DEFAULT_THEME_APPEARANCE = { timelineYear: "@primaryStrong", timelineYearAlternate: "@primary", timelineQuarter: "@primaryStrong", timelineQuarterAlternate: "@primaryStrong", timelineMonth: "@primary", timelineMonthAlternate: "@primary", timelineWeek: "@primarySoft", timelineWeekAlternate: "@primarySoft", timelineGrid: "@border", todayLine: "@danger", dependencyIncoming: "@accent", dependencyOutgoing: "@primaryStrong", dependencyNeutral: "@neutral" };
+const THEME_APPEARANCE_OPTIONS = [["timelineYear", "Frise — années"], ["timelineYearAlternate", "Frise — années alternées"], ["timelineQuarter", "Frise — trimestres"], ["timelineQuarterAlternate", "Frise — trimestres alternés"], ["timelineMonth", "Frise — mois"], ["timelineMonthAlternate", "Frise — mois alternés"], ["timelineWeek", "Frise — semaines"], ["timelineWeekAlternate", "Frise — semaines alternées"], ["todayLine", "Ligne d’aujourd’hui"], ["dependencyIncoming", "Dépendance entrante"], ["dependencyOutgoing", "Dépendance sortante"], ["dependencyNeutral", "Dépendance neutre"]];
+const DEFAULT_THEME_APPEARANCE = { timelineYear: "@primaryStrong", timelineYearAlternate: "@primary", timelineQuarter: "@primaryStrong", timelineQuarterAlternate: "@primaryStrong", timelineMonth: "@primary", timelineMonthAlternate: "@primary", timelineWeek: "@primarySoft", timelineWeekAlternate: "@primarySoft", todayLine: "@danger", dependencyIncoming: "@accent", dependencyOutgoing: "@primaryStrong", dependencyNeutral: "@neutral" };
+const DEFAULT_THEME_GRID = { primary: { color: "@border", width: 1.2, style: "solid" }, secondary: { color: "@neutralSoft", width: 0.6, style: "dotted" } };
 const timelineLevels = [
   { key: "year", toggle: document.getElementById("toggleYearTimeline"), h: 20, fillRole: "timelineYear", altRole: "timelineYearAlternate", cls: "year-label" },
   { key: "quarter", toggle: document.getElementById("toggleQuarterTimeline"), h: 24, fillRole: "timelineQuarter", altRole: "timelineQuarterAlternate", cls: "quarter-label" },
@@ -722,7 +734,8 @@ const timelineLevels = [
 ];
 const defaultTimelineSettings = () => ({
   levels: { year: true, quarter: false, month: true, week: false },
-  gridLevel: "month",
+  gridPrimaryLevel: "month",
+  gridSecondaryLevel: "",
   showTodayLine: true,
   showDateDependencies: false,
   backgroundColor: "@surface",
@@ -1271,7 +1284,9 @@ function renderStackingGroup(items, milestones, lane = null) {
     else drawMilestone(object, lane);
   });
 }
-function render() { setup(); svg.innerHTML = ""; const timeline = planningData.timeline, exportOpacity = Math.max(0, Math.min(1, Number(timeline.backgroundOpacity) || 0)); svg.appendChild(el("rect", { x: 0, y: 0, width: geometry.W, height: geometry.H, fill: resolveColor(timeline.backgroundColor, resolveColor("@surface")), "fill-opacity": 1, "data-export-opacity": exportOpacity, class: "planning-background", "pointer-events": "none" })); let y = geometry.top; visibleLevels().forEach((level, n) => { const p = periods(level.key); p.slice(0, -1).forEach((v, i) => { const x1 = x(v[1]), x2 = x(p[i + 1][1]); svg.append(el("rect", { x: x1, y, width: x2 - x1, height: level.height, fill: resolveColor(themeAppearance(level.altRole && i % 2 ? level.altRole : level.fillRole)), stroke: "#fff" }), el("text", { x: (x1 + x2) / 2, y: y + level.height / 2, "dominant-baseline": "middle", "text-anchor": "middle", class: level.cls }, v[0])); }); y += level.height + (n < visibleLevels().length - 1 ? 2 : 0); }); const gp = gridTimelineLevel.disabled ? [] : periods(gridTimelineLevel.value); gp.slice(0, -1).forEach(v => svg.appendChild(el("line", { x1: x(v[1] < planningData.range.start ? planningData.range.start : v[1]), y1: geometry.timelineTop, x2: x(v[1] < planningData.range.start ? planningData.range.start : v[1]), y2: geometry.timelineBottom, stroke: resolveColor(themeAppearance("timelineGrid")) }))); planningData.overlays.forEach(drawOverlayHandle); renderStackingGroup(planningData.milestones, planningData.items); planningData.lanes.forEach(lane => { const bg = lane.backgroundColor ?? lane.background; if (bg && (lane.backgroundOpacity ?? 1) > 0) svg.appendChild(el("rect", { x: geometry.left, y: lane._y, width: geometry.timelineW, height: lane._h, fill: resolveColor(bg), "fill-opacity": lane.backgroundOpacity ?? 1, "pointer-events": "none" })); if (lane.key !== "change") { const g = group("lane", lane, null, 43); g.appendChild(el("rect", { x: 14, y: lane._y, width: 58, height: lane._h, fill: resolveColor(lane.labelColor, resolveColor("@primaryStrong")), class: "planning-shape" })); const label = el("g", { transform: `translate(44 ${lane._y + lane._h / 2}) rotate(-90)` }); textLines(label, lane.label, 0, -4, "lane-label", 18); g.appendChild(label); svg.appendChild(g); } renderStackingGroup(lane.items, lane.milestones, lane); }); planningData.overlays.forEach(drawOverlay); planningData.milestones.forEach(drawMilestoneVerticalLine); planningData.lanes.forEach(lane => lane.milestones.forEach(drawMilestoneVerticalLine)); const showSelectedDateDependencies = Boolean(selection && ["phase", "task", "global-milestone", "lane-milestone"].includes(selection.type) && editorSectionOpen("Informations")); if (dateDependenciesToggle.checked || showSelectedDateDependencies) drawDateDependencies(!dateDependenciesToggle.checked); const today = dateIso(); if (todayLineToggle.checked && today >= planningData.range.start && today <= planningData.range.end) svg.appendChild(el("line", { x1: x(today), y1: 0, x2: x(today), y2: geometry.H, stroke: resolveColor(themeAppearance("todayLine")), "stroke-width": 2, "pointer-events": "none" })); }
+function gridDasharray(style) { return style === "dashed" ? "8 5" : style === "dotted" ? "2 4" : null; }
+function drawTimelineGrid(level, grid) { if (!level) return; periods(level).slice(0, -1).forEach(v => { const date = v[1] < planningData.range.start ? planningData.range.start : v[1]; svg.appendChild(el("line", { x1: x(date), y1: geometry.timelineTop, x2: x(date), y2: geometry.timelineBottom, stroke: resolveColor(grid.color), "stroke-width": grid.width, "stroke-dasharray": gridDasharray(grid.style), "stroke-linecap": grid.style === "dotted" ? "round" : null, "pointer-events": "none" })); }); }
+function render() { setup(); svg.innerHTML = ""; const timeline = planningData.timeline, exportOpacity = Math.max(0, Math.min(1, Number(timeline.backgroundOpacity) || 0)); svg.appendChild(el("rect", { x: 0, y: 0, width: geometry.W, height: geometry.H, fill: resolveColor(timeline.backgroundColor, resolveColor("@surface")), "fill-opacity": 1, "data-export-opacity": exportOpacity, class: "planning-background", "pointer-events": "none" })); let y = geometry.top; visibleLevels().forEach((level, n) => { const p = periods(level.key); p.slice(0, -1).forEach((v, i) => { const x1 = x(v[1]), x2 = x(p[i + 1][1]); svg.append(el("rect", { x: x1, y, width: x2 - x1, height: level.height, fill: resolveColor(themeAppearance(level.altRole && i % 2 ? level.altRole : level.fillRole)), stroke: "#fff" }), el("text", { x: (x1 + x2) / 2, y: y + level.height / 2, "dominant-baseline": "middle", "text-anchor": "middle", class: level.cls }, v[0])); }); y += level.height + (n < visibleLevels().length - 1 ? 2 : 0); }); drawTimelineGrid(secondaryGridTimelineLevel.disabled ? "" : secondaryGridTimelineLevel.value, planningData.theme.grid.secondary); drawTimelineGrid(primaryGridTimelineLevel.disabled ? "" : primaryGridTimelineLevel.value, planningData.theme.grid.primary); planningData.overlays.forEach(drawOverlayHandle); renderStackingGroup(planningData.milestones, planningData.items); planningData.lanes.forEach(lane => { const bg = lane.backgroundColor ?? lane.background; if (bg && (lane.backgroundOpacity ?? 1) > 0) svg.appendChild(el("rect", { x: geometry.left, y: lane._y, width: geometry.timelineW, height: lane._h, fill: resolveColor(bg), "fill-opacity": lane.backgroundOpacity ?? 1, "pointer-events": "none" })); if (lane.key !== "change") { const g = group("lane", lane, null, 43); g.appendChild(el("rect", { x: 14, y: lane._y, width: 58, height: lane._h, fill: resolveColor(lane.labelColor, resolveColor("@primaryStrong")), class: "planning-shape" })); const label = el("g", { transform: `translate(44 ${lane._y + lane._h / 2}) rotate(-90)` }); textLines(label, lane.label, 0, -4, "lane-label", 18); g.appendChild(label); svg.appendChild(g); } renderStackingGroup(lane.items, lane.milestones, lane); }); planningData.overlays.forEach(drawOverlay); planningData.milestones.forEach(drawMilestoneVerticalLine); planningData.lanes.forEach(lane => lane.milestones.forEach(drawMilestoneVerticalLine)); const showSelectedDateDependencies = Boolean(selection && ["phase", "task", "global-milestone", "lane-milestone"].includes(selection.type) && editorSectionOpen("Informations")); if (dateDependenciesToggle.checked || showSelectedDateDependencies) drawDateDependencies(!dateDependenciesToggle.checked); const today = dateIso(); if (todayLineToggle.checked && today >= planningData.range.start && today <= planningData.range.end) svg.appendChild(el("line", { x1: x(today), y1: 0, x2: x(today), y2: geometry.H, stroke: resolveColor(themeAppearance("todayLine")), "stroke-width": 2, "pointer-events": "none" })); }
 
 function current() { if (!selection) return null; if (selection.type === "global-milestone") return { object: planningData.milestones.find(v => v.id === selection.itemId) }; if (selection.type === "overlay") return { object: planningData.overlays.find(v => v.id === selection.itemId) }; if (["phase", "task"].includes(selection.type) && !selection.laneId) return { object: planningData.items.find(v => v.id === selection.itemId), lane: null }; const lane = planningData.lanes.find(v => v.id === (selection.laneId || selection.itemId)); if (!lane) return null; if (selection.type === "lane") return { object: lane, lane }; return { object: (selection.type === "lane-milestone" ? lane.milestones : lane.items).find(v => v.id === selection.itemId), lane }; }
 function color(v) { return resolveColor(v); }
@@ -1508,7 +1523,8 @@ function normalise(data) {
   // Keep only the current semantic roles. Older role names are intentionally
   // discarded instead of being carried as hidden aliases in the palette.
   const colors = Object.fromEntries(Object.keys(preset.colors).map(key => [key, requestedColors[key] ?? preset.colors[key]]));
-  data.theme = { preset: presetId, colors, appearance: { ...DEFAULT_THEME_APPEARANCE, ...(data.theme?.appearance || {}) } };
+  const legacyGridColor = data.theme?.appearance?.timelineGrid, { timelineGrid: _legacyGrid, ...appearance } = data.theme?.appearance || {};
+  data.theme = { preset: presetId, colors, appearance: { ...DEFAULT_THEME_APPEARANCE, ...appearance }, grid: { primary: { ...DEFAULT_THEME_GRID.primary, ...(data.theme?.grid?.primary || {}), ...(data.theme?.grid?.primary?.color ? {} : legacyGridColor ? { color: legacyGridColor } : {}) }, secondary: { ...DEFAULT_THEME_GRID.secondary, ...(data.theme?.grid?.secondary || {}) } } };
   Object.keys(data.theme.colors).forEach(key => { if (!/^#[0-9a-f]{6}$/i.test(data.theme.colors[key])) data.theme.colors[key] = preset.colors[key] || "#000000"; });
   Object.keys(data.theme.appearance).forEach(key => {
     const value = data.theme.appearance[key], token = typeof value === "string" ? value.slice(1) : "";
@@ -1516,11 +1532,21 @@ function normalise(data) {
     const isCustomColor = /^#[0-9a-f]{6}$/i.test(value || "");
     if (!isThemeColor && !isCustomColor) data.theme.appearance[key] = DEFAULT_THEME_APPEARANCE[key] || "@text";
   });
+  ["primary", "secondary"].forEach(key => {
+    const grid = data.theme.grid[key], token = typeof grid.color === "string" ? grid.color.slice(1) : "";
+    if (!(/^@[A-Za-z][A-Za-z0-9]*$/.test(grid.color || "") && data.theme.colors[token]) && !/^#[0-9a-f]{6}$/i.test(grid.color || "")) grid.color = DEFAULT_THEME_GRID[key].color;
+    grid.width = Math.max(0.25, Math.min(12, Number.isFinite(Number(grid.width)) ? Number(grid.width) : DEFAULT_THEME_GRID[key].width));
+    if (!["solid", "dashed", "dotted"].includes(grid.style)) grid.style = DEFAULT_THEME_GRID[key].style;
+  });
   if (typeof data.monthLocale !== "string" || !data.monthLocale) data.monthLocale = "fr-FR";
   const defaults = defaultTimelineSettings();
   data.timeline ||= {};
   data.timeline.levels = { ...defaults.levels, ...data.timeline.levels };
-  data.timeline.gridLevel ||= defaults.gridLevel;
+  data.timeline.gridPrimaryLevel = data.timeline.gridPrimaryLevel ?? data.timeline.gridLevel ?? defaults.gridPrimaryLevel;
+  data.timeline.gridSecondaryLevel = data.timeline.gridSecondaryLevel ?? defaults.gridSecondaryLevel;
+  if (!["year", "quarter", "month", "week"].includes(data.timeline.gridPrimaryLevel)) data.timeline.gridPrimaryLevel = defaults.gridPrimaryLevel;
+  if (data.timeline.gridSecondaryLevel !== "" && !["year", "quarter", "month", "week"].includes(data.timeline.gridSecondaryLevel)) data.timeline.gridSecondaryLevel = defaults.gridSecondaryLevel;
+  delete data.timeline.gridLevel;
   if (typeof data.timeline.showTodayLine !== "boolean") data.timeline.showTodayLine = defaults.showTodayLine;
   if (typeof data.timeline.showDateDependencies !== "boolean") data.timeline.showDateDependencies = defaults.showDateDependencies;
   if (!/^#[0-9a-f]{6}$/i.test(data.timeline.backgroundColor || "") && !/^@[A-Za-z][A-Za-z0-9]*$/.test(data.timeline.backgroundColor || "")) data.timeline.backgroundColor = defaults.backgroundColor;
@@ -1626,13 +1652,14 @@ function download(blob, filename) { const a = document.createElement("a"); a.hre
 function xml() { const out = svg.cloneNode(true); out.setAttribute("xmlns", NS); out.setAttribute("font-family", getComputedStyle(svg).fontFamily); out.querySelectorAll(".selected").forEach(n => n.classList.remove("selected")); out.querySelectorAll("[data-export-opacity]").forEach(n => { n.setAttribute("fill-opacity", n.dataset.exportOpacity); n.removeAttribute("data-export-opacity"); }); svg.querySelectorAll("text").forEach((source, i) => { const target = out.querySelectorAll("text")[i], c = getComputedStyle(source); ["fill", "font-family", "font-size", "font-weight", "font-style", "letter-spacing"].forEach(k => target.style.setProperty(k, c.getPropertyValue(k))); }); return new XMLSerializer().serializeToString(out); }
 function importData(file) { if (!file) return; const reader = new FileReader(); reader.onload = () => { try { const data = JSON.parse(reader.result); if (!valid(data)) throw 0; if (isDirty && !confirm("Les modifications non enregistrées seront perdues. Importer ce fichier ?")) return; const suggestion = file.name.replace(/\.json$/i, "") || "Planning importé"; applyPlanning(data, { dirty: true, imported: true }); const name = askPlanName("Nom du planning importé (il sera enregistré dans ce navigateur) :", suggestion); if (name === null) return; if (!name) return alert("L’import est chargé mais non enregistré. Cliquez sur Enregistrer lorsque vous aurez choisi un nom."); saveWithName(name); } catch (_) { alert("Le fichier sélectionné n’est pas un planning valide."); } }; reader.readAsText(file); }
 function saveWithName(name) { const plan = { id: newId("plan"), name, updatedAt: new Date().toISOString(), data: clone(planningData) }; savedPlans.push(plan); activePlanId = plan.id; try { writeSavedPlans(); isDirty = false; importedVersion = false; refreshSavedPlanList(); status(); } catch (_) { alert("L’import est chargé, mais n’a pas pu être enregistré dans ce navigateur."); } }
-function gridChoices() { const keys = new Set(visibleLevels().map(v => v.key)); [...gridTimelineLevel.options].forEach(v => v.disabled = !keys.has(v.value)); if (!keys.has(gridTimelineLevel.value)) gridTimelineLevel.value = visibleLevels()[0]?.key || ""; gridTimelineLevel.disabled = !keys.size; }
+function gridChoices() { const keys = new Set(visibleLevels().map(v => v.key)); [primaryGridTimelineLevel, secondaryGridTimelineLevel].forEach(select => { [...select.options].forEach(option => option.disabled = option.value !== "" && !keys.has(option.value)); if (select.value && !keys.has(select.value)) select.value = select === primaryGridTimelineLevel ? visibleLevels()[0]?.key || "" : ""; select.disabled = !keys.size; }); }
 function restoreTimelineSettings() {
   const settings = planningData.timeline;
   todayLineToggle.checked = settings.showTodayLine;
   dateDependenciesToggle.checked = settings.showDateDependencies;
   timelineLevels.forEach(level => { level.toggle.checked = settings.levels[level.key]; });
-  gridTimelineLevel.value = settings.gridLevel;
+  primaryGridTimelineLevel.value = settings.gridPrimaryLevel;
+  secondaryGridTimelineLevel.value = settings.gridSecondaryLevel;
   timelineLocale.value = timelineLocaleValue();
 }
 function displayRatio() { return Math.round((Number(planningData.layout.width) || 1500) / 15); }
@@ -1893,6 +1920,16 @@ function updateThemeAppearance(key, value) {
   planningData.theme.appearance[key] = value;
   isDirty = true; importedVersion = false; status(); render();
 }
+function updateThemeGrid(level, key, value) {
+  if (key === "color") {
+    const themeRole = /^@([A-Za-z][A-Za-z0-9]*)$/.exec(value || "")?.[1];
+    if ((themeRole && !themeColors()[themeRole]) || (!themeRole && !/^#[0-9a-f]{6}$/i.test(value || ""))) return;
+  }
+  if (key === "width") value = Math.max(0.25, Math.min(12, Number(value) || DEFAULT_THEME_GRID[level].width));
+  if (key === "style" && !["solid", "dashed", "dotted"].includes(value)) return;
+  planningData.theme.grid[level][key] = value;
+  isDirty = true; importedVersion = false; status(); render();
+}
 function renderThemeEditor() {
   editor.innerHTML = "";
   const card = document.createElement("div"); card.className = "editor-card";
@@ -1922,6 +1959,17 @@ function renderThemeEditor() {
   backgroundOpacityField.oninput = event => updateTimelineBackground("backgroundOpacity", event.target.value);
   const backgroundNote = document.createElement("p"); backgroundNote.className = "impact-note"; backgroundNote.textContent = "La couleur reste pleinement visible dans l’éditeur. Son opacité est appliquée aux exports SVG et PNG ; 0 produit un fond transparent.";
   card.append(section("Fond du planning", [fieldGrid(backgroundColor, backgroundOpacity), backgroundNote], false));
+  const gridFields = ["primary", "secondary"].flatMap(level => {
+    const grid = planningData.theme.grid[level], title = level === "primary" ? "Quadrillage principal" : "Quadrillage secondaire";
+    const color = colorPicker(`Couleur — ${title}`, grid.color, value => updateThemeGrid(level, "color", value));
+    const width = input(`Épaisseur — ${title}`, `grid-${level}-width`, grid.width, "number");
+    const widthInput = width.querySelector("input"); widthInput.min = "0.25"; widthInput.max = "12"; widthInput.step = "0.25"; widthInput.oninput = event => updateThemeGrid(level, "width", event.target.value);
+    const style = input(`Type — ${title}`, `grid-${level}-style`, grid.style, "select", [["solid", "Plein"], ["dashed", "Tirets"], ["dotted", "Points"]]);
+    style.querySelector("select").onchange = event => updateThemeGrid(level, "style", event.target.value);
+    return [color, fieldGrid(width, style)];
+  });
+  const gridNote = document.createElement("p"); gridNote.className = "hint"; gridNote.textContent = "Le quadrillage secondaire est volontairement discret par défaut et ne s’affiche que lorsqu’une périodicité lui est attribuée dans la frise.";
+  card.append(section("Quadrillage vertical", [gridNote, ...gridFields], false));
   const appearanceFields = THEME_APPEARANCE_OPTIONS.map(([key, label]) => colorPicker(label, themeAppearance(key), value => updateThemeAppearance(key, value)));
   const appearanceNote = document.createElement("p"); appearanceNote.className = "hint"; appearanceNote.textContent = "Choisissez une couleur du nuancier ou une couleur personnalisée pour chaque partie du rendu.";
   card.append(section("Attribution au planning", [appearanceNote, fieldGrid(...appearanceFields)], false));
@@ -1959,7 +2007,7 @@ renderEditor = function () {
 const originalClear = clear;
 clear = function () { restoreTimelineControls(); originalClear(); };
 
-svg.onclick = clear; document.getElementById("btnSave").onclick = save; document.getElementById("btnNew").onclick = createNewPlanning; document.getElementById("btnDeletePlan").onclick = deleteSavedPlanning; renamePlanButton.onclick = renameCurrentPlanning; loadButton.onclick = event => { event.stopPropagation(); const opening = loadMenu.hidden; loadMenu.hidden = !opening; loadButton.setAttribute("aria-expanded", String(opening)); }; loadMenu.onclick = event => { const option = event.target.closest("[data-plan-id]"); if (!option) return; closeLoadMenu(); loadSavedPlanning(option.dataset.planId); }; document.getElementById("btnData").onclick = () => download(new Blob([JSON.stringify(planningData, null, 2)], { type: "application/json" }), exportFilename("json")); document.getElementById("btnImport").onclick = () => document.getElementById("importFile").click(); document.getElementById("importFile").onchange = e => { importData(e.target.files[0]); e.target.value = ""; }; document.getElementById("btnSvg").onclick = () => download(new Blob([xml()], { type: "image/svg+xml;charset=utf-8" }), exportFilename("svg")); document.getElementById("btnPng").onclick = () => { const url = URL.createObjectURL(new Blob([xml()], { type: "image/svg+xml;charset=utf-8" })), image = new Image(); image.onload = () => { const c = document.createElement("canvas"), scale = 2; c.width = geometry.W * scale; c.height = geometry.H * scale; const ctx = c.getContext("2d"); ctx.drawImage(image, 0, 0, c.width, c.height); c.toBlob(b => { URL.revokeObjectURL(url); if (!b) return alert("L’export PNG a échoué."); download(b, exportFilename("png")); }, "image/png"); }; image.onerror = () => { URL.revokeObjectURL(url); alert("L’export PNG a échoué."); }; image.src = url; }; todayLineToggle.onchange = () => { planningData.timeline.showTodayLine = todayLineToggle.checked; markTimelineChange(); render(); }; dateDependenciesToggle.onchange = () => { planningData.timeline.showDateDependencies = dateDependenciesToggle.checked; markTimelineChange(); render(); }; timelineLevels.forEach(level => level.toggle.onchange = () => { planningData.timeline.levels[level.key] = level.toggle.checked; gridChoices(); planningData.timeline.gridLevel = gridTimelineLevel.value; markTimelineChange(); render(); }); gridTimelineLevel.onchange = () => { planningData.timeline.gridLevel = gridTimelineLevel.value; markTimelineChange(); render(); }; timelineLocale.onchange = () => { planningData.monthLocale = timelineLocale.value; markTimelineChange(); render(); }; window.addEventListener("beforeunload", e => { if (isDirty) { e.preventDefault(); e.returnValue = ""; } });
+svg.onclick = clear; document.getElementById("btnSave").onclick = save; document.getElementById("btnNew").onclick = createNewPlanning; document.getElementById("btnDeletePlan").onclick = deleteSavedPlanning; renamePlanButton.onclick = renameCurrentPlanning; loadButton.onclick = event => { event.stopPropagation(); const opening = loadMenu.hidden; loadMenu.hidden = !opening; loadButton.setAttribute("aria-expanded", String(opening)); }; loadMenu.onclick = event => { const option = event.target.closest("[data-plan-id]"); if (!option) return; closeLoadMenu(); loadSavedPlanning(option.dataset.planId); }; document.getElementById("btnData").onclick = () => download(new Blob([JSON.stringify(planningData, null, 2)], { type: "application/json" }), exportFilename("json")); document.getElementById("btnImport").onclick = () => document.getElementById("importFile").click(); document.getElementById("importFile").onchange = e => { importData(e.target.files[0]); e.target.value = ""; }; document.getElementById("btnSvg").onclick = () => download(new Blob([xml()], { type: "image/svg+xml;charset=utf-8" }), exportFilename("svg")); document.getElementById("btnPng").onclick = () => { const url = URL.createObjectURL(new Blob([xml()], { type: "image/svg+xml;charset=utf-8" })), image = new Image(); image.onload = () => { const c = document.createElement("canvas"), scale = 2; c.width = geometry.W * scale; c.height = geometry.H * scale; const ctx = c.getContext("2d"); ctx.drawImage(image, 0, 0, c.width, c.height); c.toBlob(b => { URL.revokeObjectURL(url); if (!b) return alert("L’export PNG a échoué."); download(b, exportFilename("png")); }, "image/png"); }; image.onerror = () => { URL.revokeObjectURL(url); alert("L’export PNG a échoué."); }; image.src = url; }; todayLineToggle.onchange = () => { planningData.timeline.showTodayLine = todayLineToggle.checked; markTimelineChange(); render(); }; dateDependenciesToggle.onchange = () => { planningData.timeline.showDateDependencies = dateDependenciesToggle.checked; markTimelineChange(); render(); }; timelineLevels.forEach(level => level.toggle.onchange = () => { planningData.timeline.levels[level.key] = level.toggle.checked; gridChoices(); planningData.timeline.gridPrimaryLevel = primaryGridTimelineLevel.value; planningData.timeline.gridSecondaryLevel = secondaryGridTimelineLevel.value; markTimelineChange(); render(); }); primaryGridTimelineLevel.onchange = () => { planningData.timeline.gridPrimaryLevel = primaryGridTimelineLevel.value; markTimelineChange(); render(); }; secondaryGridTimelineLevel.onchange = () => { planningData.timeline.gridSecondaryLevel = secondaryGridTimelineLevel.value; markTimelineChange(); render(); }; timelineLocale.onchange = () => { planningData.monthLocale = timelineLocale.value; markTimelineChange(); render(); }; window.addEventListener("beforeunload", e => { if (isDirty) { e.preventDefault(); e.returnValue = ""; } });
 
 function closeAddMenu() { addMenu.hidden = true; addOptionsButton.setAttribute("aria-expanded", "false"); }
 addButton.addEventListener("click", () => addPlanningObject("item"));

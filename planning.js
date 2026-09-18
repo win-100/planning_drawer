@@ -10,7 +10,8 @@ const addOptionsButton = document.getElementById("btnAddOptions");
 const addMenu = document.getElementById("addMenu");
 const todayLineToggle = document.getElementById("toggleTodayLine");
 const dateDependenciesToggle = document.getElementById("toggleDateDependencies");
-const gridTimelineLevel = document.getElementById("gridTimelineLevel");
+const primaryGridTimelineLevel = document.getElementById("primaryGridTimelineLevel");
+const secondaryGridTimelineLevel = document.getElementById("secondaryGridTimelineLevel");
 const timelineLocale = document.getElementById("timelineLocale");
 const themeButton = document.getElementById("btnTheme");
 // A theme only contains semantic colour roles.  Planning objects may reference
@@ -26,8 +27,9 @@ const THEME_PRESETS = {
 // colours without prescribing where each one is used.
 const THEME_COLOR_OPTIONS = [["primary", "Principale"], ["primaryStrong", "Principale — foncée"], ["primarySoft", "Principale — claire"], ["secondary", "Secondaire"], ["secondaryStrong", "Secondaire — foncée"], ["secondarySoft", "Secondaire — claire"], ["accent", "Accent"], ["accentSoft", "Accent — clair"], ["text", "Texte principal"], ["textSecondary", "Texte secondaire"], ["textOnDark", "Texte sur fond sombre"], ["neutral", "Gris neutre"], ["neutralSoft", "Gris neutre — clair"], ["surface", "Fond principal"], ["surfaceAlt", "Fond alternatif"], ["border", "Bordure / quadrillage"], ["danger", "Alerte / échéance critique"], ["warning", "Attention"], ["success", "Succès / validation"]];
 const THEME_COLOR_GROUPS = [["Principale", ["primary", "primaryStrong", "primarySoft"]], ["Secondaire", ["secondary", "secondaryStrong", "secondarySoft"]], ["Accent", ["accent", "accentSoft"]], ["Texte", ["text", "textSecondary", "textOnDark"]], ["Neutres", ["neutral", "neutralSoft", "border"]], ["Fonds", ["surface", "surfaceAlt"]], ["États", ["danger", "warning", "success"]]];
-const THEME_APPEARANCE_OPTIONS = [["timelineYear", "Frise — années"], ["timelineYearAlternate", "Frise — années alternées"], ["timelineQuarter", "Frise — trimestres"], ["timelineQuarterAlternate", "Frise — trimestres alternés"], ["timelineMonth", "Frise — mois"], ["timelineMonthAlternate", "Frise — mois alternés"], ["timelineWeek", "Frise — semaines"], ["timelineWeekAlternate", "Frise — semaines alternées"], ["timelineGrid", "Quadrillage vertical"], ["todayLine", "Ligne d’aujourd’hui"], ["dependencyIncoming", "Dépendance entrante"], ["dependencyOutgoing", "Dépendance sortante"], ["dependencyNeutral", "Dépendance neutre"]];
-const DEFAULT_THEME_APPEARANCE = { timelineYear: "@primaryStrong", timelineYearAlternate: "@primary", timelineQuarter: "@primaryStrong", timelineQuarterAlternate: "@primaryStrong", timelineMonth: "@primary", timelineMonthAlternate: "@primary", timelineWeek: "@primarySoft", timelineWeekAlternate: "@primarySoft", timelineGrid: "@border", todayLine: "@danger", dependencyIncoming: "@accent", dependencyOutgoing: "@primaryStrong", dependencyNeutral: "@neutral" };
+const THEME_APPEARANCE_OPTIONS = [["timelineYear", "Frise — années"], ["timelineYearAlternate", "Frise — années alternées"], ["timelineQuarter", "Frise — trimestres"], ["timelineQuarterAlternate", "Frise — trimestres alternés"], ["timelineMonth", "Frise — mois"], ["timelineMonthAlternate", "Frise — mois alternés"], ["timelineWeek", "Frise — semaines"], ["timelineWeekAlternate", "Frise — semaines alternées"], ["todayLine", "Ligne d’aujourd’hui"], ["dependencyIncoming", "Dépendance entrante"], ["dependencyOutgoing", "Dépendance sortante"], ["dependencyNeutral", "Dépendance neutre"]];
+const DEFAULT_THEME_APPEARANCE = { timelineYear: "@primaryStrong", timelineYearAlternate: "@primary", timelineQuarter: "@primaryStrong", timelineQuarterAlternate: "@primaryStrong", timelineMonth: "@primary", timelineMonthAlternate: "@primary", timelineWeek: "@primarySoft", timelineWeekAlternate: "@primarySoft", todayLine: "@danger", dependencyIncoming: "@accent", dependencyOutgoing: "@primaryStrong", dependencyNeutral: "@neutral" };
+const DEFAULT_THEME_GRID = { primary: { color: "@border", width: 1.2, style: "solid" }, secondary: { color: "@neutralSoft", width: 0.6, style: "dotted" } };
 const timelineLevels = [
   { key: "year", toggle: document.getElementById("toggleYearTimeline"), h: 20, fillRole: "timelineYear", altRole: "timelineYearAlternate", cls: "year-label" },
   { key: "quarter", toggle: document.getElementById("toggleQuarterTimeline"), h: 24, fillRole: "timelineQuarter", altRole: "timelineQuarterAlternate", cls: "quarter-label" },
@@ -36,9 +38,11 @@ const timelineLevels = [
 ];
 const defaultTimelineSettings = () => ({
   levels: { year: true, quarter: false, month: true, week: false },
-  gridLevel: "month",
+  gridPrimaryLevel: "month",
+  gridSecondaryLevel: "",
   showTodayLine: true,
   showDateDependencies: false,
+  compactMode: false,
   backgroundColor: "@surface",
   backgroundOpacity: 0
 });
@@ -324,13 +328,13 @@ function objectLabel(entry) {
 function createsReferenceCycle(sourceId, targetId) { let current = positionReferenceById(targetId)?.item; const seen = new Set(); while (current?.relativeTo && !seen.has(current.id)) { if (current.id === sourceId) return true; seen.add(current.id); current = positionReferenceById(current.relativeTo)?.item; } return current?.id === sourceId; }
 function itemHeight(item) { return style(item).h ?? planningData.layout.defaultItemHeight ?? 30; }
 function relativeMode(item) { return ["below", "center", "align"].includes(item.yOffsetMode) ? item.yOffsetMode : "absolute"; }
-function itemTop(item, lane, visiting = new Set()) {
+function naturalItemTop(item, lane, visiting = new Set()) {
   const raw = Number(item.yOffset) || 0;
   const mode = relativeMode(item), reference = mode !== "absolute" && item.relativeTo ? itemById(item.relativeTo) : null;
   const container = lane || unlanedArea;
   if (!reference || visiting.has(item.id)) return container._y + (lane?.paddingTop ?? 0) + raw;
   const next = new Set(visiting); next.add(item.id);
-  const referenceTop = itemTop(reference.item, reference.lane, next);
+  const referenceTop = naturalItemTop(reference.item, reference.lane, next);
   if (mode === "below") return referenceTop + itemHeight(reference.item) + raw;
   if (mode === "center") return referenceTop + (itemHeight(reference.item) - itemHeight(item)) / 2 + raw;
   return referenceTop + raw;
@@ -341,7 +345,7 @@ function relativeYOffsetForTop(item, reference, top) {
   if (relativeMode(item) === "center") return top - referenceTop - (itemHeight(reference.item) - itemHeight(item)) / 2;
   return top - referenceTop;
 }
-function milestoneTop(item, lane, visiting = new Set()) {
+function naturalMilestoneTop(item, lane, visiting = new Set()) {
   const raw = Number(item.yOffset) || 0, mode = relativeMode(item), reference = mode !== "absolute" && item.relativeTo ? positionReferenceById(item.relativeTo) : null;
   const fallbackTimelineTop = Math.max(planningData.layout.timelineTop ?? 58, (planningData.layout.topMonths ?? 8) + visibleLevels().reduce((total, level, index) => total + level.height + (index ? 2 : 0), 0));
   // During setup, geometry may still describe the previously loaded planning.
@@ -350,11 +354,49 @@ function milestoneTop(item, lane, visiting = new Set()) {
   const base = lane ? lane._y + (lane.paddingTop ?? 0) - 15 : fallbackTimelineTop + 22;
   if (!reference || (reference.lane || null) !== (lane || null) || visiting.has(item.id)) return base + raw;
   const next = new Set(visiting); next.add(item.id);
-  const referenceTop = isMilestoneEntry(reference) ? milestoneTop(reference.item, reference.lane, next) : itemTop(reference.item, reference.lane);
+  const referenceTop = isMilestoneEntry(reference) ? naturalMilestoneTop(reference.item, reference.lane, next) : naturalItemTop(reference.item, reference.lane);
   const referenceHeight = isMilestoneEntry(reference) ? milestoneHeight(reference.item) : itemHeight(reference.item);
   if (mode === "below") return referenceTop + referenceHeight + raw;
   if (mode === "center") return referenceTop + (referenceHeight - milestoneHeight(item)) / 2 + raw;
   return referenceTop + raw;
+}
+function itemVisibleInRange(item) {
+  if ("date" in item) {
+    const date = resolvedDate(item, "date");
+    return Boolean(date && date >= planningData.range.start && date <= planningData.range.end);
+  }
+  const start = resolvedDate(item, "start"), end = resolvedDate(item, "end");
+  return Boolean(start && end && end > planningData.range.start && start < planningData.range.end);
+}
+function buildCompactPositions(items, milestones, lane) {
+  const entries = [
+    ...items.filter(itemVisibleInRange).map((item, index) => ({ item, index, top: naturalItemTop(item, lane) - lane._y, height: itemHeight(item) })),
+    ...milestones.filter(itemVisibleInRange).map((item, index) => ({ item, index: items.length + index, top: naturalMilestoneTop(item, lane === unlanedArea ? null : lane) - lane._y, height: milestoneHeight(item) }))
+  ].sort((a, b) => a.top - b.top || a.index - b.index);
+  const positions = new Map();
+  let rawStart = 0, rawEnd = 0, compactStart = lane === unlanedArea ? 0 : lane.paddingTop ?? 0, compactEnd = compactStart;
+  entries.forEach((entry, index) => {
+    if (!index || entry.top > rawEnd) {
+      rawStart = entry.top;
+      compactStart = index ? compactEnd : (lane === unlanedArea ? 0 : lane.paddingTop ?? 0);
+      rawEnd = entry.top + entry.height;
+    } else {
+      rawEnd = Math.max(rawEnd, entry.top + entry.height);
+    }
+    const top = compactStart + entry.top - rawStart;
+    compactEnd = Math.max(compactEnd, top + entry.height);
+    positions.set(entry.item.id, lane._y + top);
+  });
+  lane._compactTops = positions;
+}
+function itemTop(item, lane, visiting) {
+  if (planningData.timeline.compactMode && lane?._compactTops?.has(item.id)) return lane._compactTops.get(item.id);
+  return naturalItemTop(item, lane, visiting);
+}
+function milestoneTop(item, lane, visiting) {
+  const container = lane || unlanedArea;
+  if (planningData.timeline.compactMode && container._compactTops?.has(item.id)) return container._compactTops.get(item.id);
+  return naturalMilestoneTop(item, lane, visiting);
 }
 function relativeYOffsetForMilestoneTop(item, reference, top) {
   const referenceTop = isMilestoneEntry(reference) ? milestoneTop(reference.item, reference.lane) : itemTop(reference.item, reference.lane);
@@ -365,26 +407,44 @@ function relativeYOffsetForMilestoneTop(item, reference, top) {
 }
 function laneContentHeight(items, milestones, lane, milestoneTopInset = 0) {
   const milestoneLane = lane === unlanedArea ? null : lane;
-  const bottoms = [0, ...items.map(item => itemTop(item, lane) - lane._y + itemHeight(item)), ...milestones.map(item => milestoneTop(item, milestoneLane) - lane._y + milestoneHeight(item))];
+  const displayedItems = planningData.timeline.compactMode ? items.filter(itemVisibleInRange) : items;
+  const displayedMilestones = planningData.timeline.compactMode ? milestones.filter(itemVisibleInRange) : milestones;
+  const bottoms = [0, ...displayedItems.map(item => itemTop(item, lane) - lane._y + itemHeight(item)), ...displayedMilestones.map(item => milestoneTop(item, milestoneLane) - lane._y + milestoneHeight(item))];
   if (lane === unlanedArea) return Math.max(...bottoms) + (planningData.layout.lanePaddingBottom ?? 10);
-  return Math.max(Number(lane.minHeight) || 0, Math.max(...bottoms) + (lane.paddingBottom ?? 0));
+  const minimum = planningData.timeline.compactMode ? 0 : Number(lane.minHeight) || 0;
+  return Math.max(minimum, Math.max(...bottoms) + (lane.paddingBottom ?? 0));
 }
 function visibleLevels() { return timelineLevels.filter(v => v.toggle.checked).map(v => ({ ...v, height: planningData.layout[`${v.key}Height`] ?? v.h })); }
 function setup() { const c = planningData.layout, levels = visibleLevels(), header = levels.reduce((n, v, i) => n + v.height + (i ? 2 : 0), 0), width = c.width ?? 1500, left = c.left ?? 86, right = c.right ?? 16, start = new Date(`${planningData.range.start}T00:00:00`), end = new Date(`${planningData.range.end}T00:00:00`); svg.style.setProperty("--display-width", `${Math.min(100, Math.max(1, Math.round(width / 15)))}%`); x = date => left + ((new Date(`${date}T00:00:00`) - start) / (end - start)) * (width - left - right);
   // Unassigned items use the same vertical positioning model as lane items:
   // start just below the timeline, then apply their yOffset.
   unlanedArea._y = Math.max((c.timelineTop ?? 58), (c.topMonths ?? 8) + header) + (c.laneGap ?? 5);
-  const hasUnlanedContent = planningData.items.length || planningData.milestones.length;
+  const hasUnlanedContent = planningData.timeline.compactMode
+    ? planningData.items.some(itemVisibleInRange) || planningData.milestones.some(itemVisibleInRange)
+    : planningData.items.length || planningData.milestones.length;
   // Global milestones retain their existing visual offset below the timeline;
   // account for that offset while the virtual lane reserves their height.
   const globalMilestoneInset = Math.max(0, 22 - (c.laneGap ?? 5));
-  unlanedArea._h = hasUnlanedContent ? laneContentHeight(planningData.items, planningData.milestones, unlanedArea, globalMilestoneInset) : 0;
-  // The first lane immediately follows the timeline, unless unassigned items
-  // above it require additional space.
-  let firstY = unlanedArea._y + unlanedArea._h + (hasUnlanedContent ? c.laneGap ?? 5 : 0), y = firstY;
-  planningData.lanes.forEach(lane => { lane._y = y; lane._h = laneContentHeight(lane.items, lane.milestones, lane); y += lane._h + (c.laneGap ?? 5); });
-  // A few passes let references work across lanes whose height is itself dynamic.
-  for (let pass = 0; pass < 4; pass++) { unlanedArea._h = hasUnlanedContent ? laneContentHeight(planningData.items, planningData.milestones, unlanedArea, globalMilestoneInset) : 0; firstY = unlanedArea._y + unlanedArea._h + (hasUnlanedContent ? c.laneGap ?? 5 : 0); y = firstY; planningData.lanes.forEach(lane => { lane._y = y; lane._h = laneContentHeight(lane.items, lane.milestones, lane); y += lane._h + (c.laneGap ?? 5); }); }
+  const arrange = () => {
+    unlanedArea._h = hasUnlanedContent ? laneContentHeight(planningData.items, planningData.milestones, unlanedArea, globalMilestoneInset) : 0;
+    // The first lane immediately follows the timeline, unless unassigned items
+    // above it require additional space.
+    let firstY = unlanedArea._y + unlanedArea._h + (hasUnlanedContent ? c.laneGap ?? 5 : 0), nextY = firstY;
+    planningData.lanes.forEach(lane => { lane._y = nextY; lane._h = laneContentHeight(lane.items, lane.milestones, lane); nextY += lane._h + (c.laneGap ?? 5); });
+    return nextY;
+  };
+  // Start from the natural coordinates, then rebuild the compact mapping on
+  // every pass. This keeps relative chains stable while lanes move upward.
+  delete unlanedArea._compactTops;
+  planningData.lanes.forEach(lane => delete lane._compactTops);
+  let y = arrange();
+  for (let pass = 0; pass < 4; pass++) {
+    if (planningData.timeline.compactMode) {
+      buildCompactPositions(planningData.items, planningData.milestones, unlanedArea);
+      planningData.lanes.forEach(lane => buildCompactPositions(lane.items, lane.milestones, lane));
+    }
+    y = arrange();
+  }
   geometry = { W: width, H: Math.ceil(y + 15), left, timelineW: width - left - right, top: c.topMonths ?? 8, header, timelineTop: Math.max(c.timelineTop ?? 58, (c.topMonths ?? 8) + header), timelineBottom: y - (c.laneGap ?? 5) }; svg.setAttribute("viewBox", `0 0 ${geometry.W} ${geometry.H}`); }
 function dateIso(date = new Date()) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`; }
 function week(date) { const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())); d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7)); return Math.ceil(((d - new Date(Date.UTC(d.getUTCFullYear(), 0, 1))) / 86400000 + 1) / 7); }
@@ -498,7 +558,7 @@ function milestoneSymbol(shape, cx, cy, size, color) {
   return el("path", { ...attrs, d: `M ${points.join(" L ")} Z` });
 }
 function milestoneSymbolCenter(item, top, lines, sub) { const symbolTop = top + lines.length * 14 + sub.length * 12 - (sub.length ? 7 : 10); return symbolTop + milestoneSize(item) / 2; }
-function drawMilestone(item, lane) { const global = !lane, lines = milestoneLines(item, global ? "title" : "label", global ? undefined : "title"), sub = milestoneLines(item, "sub"), color = resolveColor(item.color, resolveColor("@text")), top = milestoneTop(item, lane), cx = x(resolvedDate(item, "date")), g = group(global ? "global-milestone" : "lane-milestone", item, lane, cx); textLines(g, lines, cx, top, "milestone-label", 14, color); if (sub.length) textLines(g, sub, cx, top + lines.length * 14 + 1, "milestone-sub", 12, color); g.appendChild(milestoneSymbol(item.shape || "star", cx, milestoneSymbolCenter(item, top, lines, sub), milestoneSize(item), color)); svg.appendChild(g); }
+function drawMilestone(item, lane) { if (!itemVisibleInRange(item)) return; const global = !lane, lines = milestoneLines(item, global ? "title" : "label", global ? undefined : "title"), sub = milestoneLines(item, "sub"), color = resolveColor(item.color, resolveColor("@text")), top = milestoneTop(item, lane), cx = x(resolvedDate(item, "date")), g = group(global ? "global-milestone" : "lane-milestone", item, lane, cx); textLines(g, lines, cx, top, "milestone-label", 14, color); if (sub.length) textLines(g, sub, cx, top + lines.length * 14 + 1, "milestone-sub", 12, color); g.appendChild(milestoneSymbol(item.shape || "star", cx, milestoneSymbolCenter(item, top, lines, sub), milestoneSize(item), color)); svg.appendChild(g); }
 function milestoneLineDasharray(style) { return style === "dashed" ? "8 5" : style === "dotted" ? "2 4" : null; }
 function drawMilestoneVerticalLine(item) {
   if (!item.showVerticalLine) return;
@@ -518,7 +578,7 @@ function drawOverlayHandle(overlay) { const { x1, width } = overlayBounds(overla
 function drawOverlay(overlay) { const { x1, width } = overlayBounds(overlay), g = el("g", { class: "planning-item" + (selected("overlay", overlay.id) ? " selected" : "") }); g.appendChild(el("rect", { x: x1, y: geometry.timelineTop, width, height: geometry.timelineBottom - geometry.timelineTop, fill: resolveColor(overlay.color, resolveColor("@neutral")), opacity: overlay.opacity, class: "planning-shape", "pointer-events": "none" })); svg.appendChild(g); }
 function dateAnchor(entry, key) {
   const { item, lane } = entry, date = resolvedDate(item, key);
-  if (!date) return null;
+  if (!date || !itemVisibleInRange(item)) return null;
   const xPos = x(clampDate(date));
   if (key === "date") {
     const global = !lane, lines = milestoneLines(item, global ? "title" : "label", global ? undefined : "title"), sub = milestoneLines(item, "sub");
@@ -585,7 +645,9 @@ function renderStackingGroup(items, milestones, lane = null) {
     else drawMilestone(object, lane);
   });
 }
-function render() { setup(); svg.innerHTML = ""; const timeline = planningData.timeline, exportOpacity = Math.max(0, Math.min(1, Number(timeline.backgroundOpacity) || 0)); svg.appendChild(el("rect", { x: 0, y: 0, width: geometry.W, height: geometry.H, fill: resolveColor(timeline.backgroundColor, resolveColor("@surface")), "fill-opacity": 1, "data-export-opacity": exportOpacity, class: "planning-background", "pointer-events": "none" })); let y = geometry.top; visibleLevels().forEach((level, n) => { const p = periods(level.key); p.slice(0, -1).forEach((v, i) => { const x1 = x(v[1]), x2 = x(p[i + 1][1]); svg.append(el("rect", { x: x1, y, width: x2 - x1, height: level.height, fill: resolveColor(themeAppearance(level.altRole && i % 2 ? level.altRole : level.fillRole)), stroke: "#fff" }), el("text", { x: (x1 + x2) / 2, y: y + level.height / 2, "dominant-baseline": "middle", "text-anchor": "middle", class: level.cls }, v[0])); }); y += level.height + (n < visibleLevels().length - 1 ? 2 : 0); }); const gp = gridTimelineLevel.disabled ? [] : periods(gridTimelineLevel.value); gp.slice(0, -1).forEach(v => svg.appendChild(el("line", { x1: x(v[1] < planningData.range.start ? planningData.range.start : v[1]), y1: geometry.timelineTop, x2: x(v[1] < planningData.range.start ? planningData.range.start : v[1]), y2: geometry.timelineBottom, stroke: resolveColor(themeAppearance("timelineGrid")) }))); planningData.overlays.forEach(drawOverlayHandle); renderStackingGroup(planningData.milestones, planningData.items); planningData.lanes.forEach(lane => { const bg = lane.backgroundColor ?? lane.background; if (bg && (lane.backgroundOpacity ?? 1) > 0) svg.appendChild(el("rect", { x: geometry.left, y: lane._y, width: geometry.timelineW, height: lane._h, fill: resolveColor(bg), "fill-opacity": lane.backgroundOpacity ?? 1, "pointer-events": "none" })); if (lane.key !== "change") { const g = group("lane", lane, null, 43); g.appendChild(el("rect", { x: 14, y: lane._y, width: 58, height: lane._h, fill: resolveColor(lane.labelColor, resolveColor("@primaryStrong")), class: "planning-shape" })); const label = el("g", { transform: `translate(44 ${lane._y + lane._h / 2}) rotate(-90)` }); textLines(label, lane.label, 0, -4, "lane-label", 18); g.appendChild(label); svg.appendChild(g); } renderStackingGroup(lane.items, lane.milestones, lane); }); planningData.overlays.forEach(drawOverlay); planningData.milestones.forEach(drawMilestoneVerticalLine); planningData.lanes.forEach(lane => lane.milestones.forEach(drawMilestoneVerticalLine)); const showSelectedDateDependencies = Boolean(selection && ["phase", "task", "global-milestone", "lane-milestone"].includes(selection.type) && editorSectionOpen("Informations")); if (dateDependenciesToggle.checked || showSelectedDateDependencies) drawDateDependencies(!dateDependenciesToggle.checked); const today = dateIso(); if (todayLineToggle.checked && today >= planningData.range.start && today <= planningData.range.end) svg.appendChild(el("line", { x1: x(today), y1: 0, x2: x(today), y2: geometry.H, stroke: resolveColor(themeAppearance("todayLine")), "stroke-width": 2, "pointer-events": "none" })); }
+function gridDasharray(style) { return style === "dashed" ? "8 5" : style === "dotted" ? "2 4" : null; }
+function drawTimelineGrid(level, grid) { if (!level) return; periods(level).slice(0, -1).forEach(v => { const date = v[1] < planningData.range.start ? planningData.range.start : v[1]; svg.appendChild(el("line", { x1: x(date), y1: geometry.timelineTop, x2: x(date), y2: geometry.timelineBottom, stroke: resolveColor(grid.color), "stroke-width": grid.width, "stroke-dasharray": gridDasharray(grid.style), "stroke-linecap": grid.style === "dotted" ? "round" : null, "pointer-events": "none" })); }); }
+function render() { setup(); svg.innerHTML = ""; const timeline = planningData.timeline, exportOpacity = Math.max(0, Math.min(1, Number(timeline.backgroundOpacity) || 0)); svg.appendChild(el("rect", { x: 0, y: 0, width: geometry.W, height: geometry.H, fill: resolveColor(timeline.backgroundColor, resolveColor("@surface")), "fill-opacity": 1, "data-export-opacity": exportOpacity, class: "planning-background", "pointer-events": "none" })); let y = geometry.top; visibleLevels().forEach((level, n) => { const p = periods(level.key); p.slice(0, -1).forEach((v, i) => { const x1 = x(v[1]), x2 = x(p[i + 1][1]); svg.append(el("rect", { x: x1, y, width: x2 - x1, height: level.height, fill: resolveColor(themeAppearance(level.altRole && i % 2 ? level.altRole : level.fillRole)), stroke: "#fff" }), el("text", { x: (x1 + x2) / 2, y: y + level.height / 2, "dominant-baseline": "middle", "text-anchor": "middle", class: level.cls }, v[0])); }); y += level.height + (n < visibleLevels().length - 1 ? 2 : 0); }); drawTimelineGrid(secondaryGridTimelineLevel.disabled ? "" : secondaryGridTimelineLevel.value, planningData.theme.grid.secondary); drawTimelineGrid(primaryGridTimelineLevel.disabled ? "" : primaryGridTimelineLevel.value, planningData.theme.grid.primary); planningData.overlays.forEach(drawOverlayHandle); renderStackingGroup(planningData.milestones, planningData.items); planningData.lanes.forEach(lane => { const bg = lane.backgroundColor ?? lane.background; if (bg && (lane.backgroundOpacity ?? 1) > 0) svg.appendChild(el("rect", { x: geometry.left, y: lane._y, width: geometry.timelineW, height: lane._h, fill: resolveColor(bg), "fill-opacity": lane.backgroundOpacity ?? 1, "pointer-events": "none" })); if (lane.key !== "change") { const g = group("lane", lane, null, 43); g.appendChild(el("rect", { x: 14, y: lane._y, width: 58, height: lane._h, fill: resolveColor(lane.labelColor, resolveColor("@primaryStrong")), class: "planning-shape" })); const label = el("g", { transform: `translate(44 ${lane._y + lane._h / 2}) rotate(-90)` }); textLines(label, lane.label, 0, -4, "lane-label", 18); g.appendChild(label); svg.appendChild(g); } renderStackingGroup(lane.items, lane.milestones, lane); }); planningData.overlays.forEach(drawOverlay); planningData.milestones.forEach(drawMilestoneVerticalLine); planningData.lanes.forEach(lane => lane.milestones.forEach(drawMilestoneVerticalLine)); const showSelectedDateDependencies = Boolean(selection && ["phase", "task", "global-milestone", "lane-milestone"].includes(selection.type) && editorSectionOpen("Informations")); if (dateDependenciesToggle.checked || showSelectedDateDependencies) drawDateDependencies(!dateDependenciesToggle.checked); const today = dateIso(); if (todayLineToggle.checked && today >= planningData.range.start && today <= planningData.range.end) svg.appendChild(el("line", { x1: x(today), y1: 0, x2: x(today), y2: geometry.H, stroke: resolveColor(themeAppearance("todayLine")), "stroke-width": 2, "pointer-events": "none" })); }
 
 function current() { if (!selection) return null; if (selection.type === "global-milestone") return { object: planningData.milestones.find(v => v.id === selection.itemId) }; if (selection.type === "overlay") return { object: planningData.overlays.find(v => v.id === selection.itemId) }; if (["phase", "task"].includes(selection.type) && !selection.laneId) return { object: planningData.items.find(v => v.id === selection.itemId), lane: null }; const lane = planningData.lanes.find(v => v.id === (selection.laneId || selection.itemId)); if (!lane) return null; if (selection.type === "lane") return { object: lane, lane }; return { object: (selection.type === "lane-milestone" ? lane.milestones : lane.items).find(v => v.id === selection.itemId), lane }; }
 function color(v) { return resolveColor(v); }
@@ -822,7 +884,8 @@ function normalise(data) {
   // Keep only the current semantic roles. Older role names are intentionally
   // discarded instead of being carried as hidden aliases in the palette.
   const colors = Object.fromEntries(Object.keys(preset.colors).map(key => [key, requestedColors[key] ?? preset.colors[key]]));
-  data.theme = { preset: presetId, colors, appearance: { ...DEFAULT_THEME_APPEARANCE, ...(data.theme?.appearance || {}) } };
+  const legacyGridColor = data.theme?.appearance?.timelineGrid, { timelineGrid: _legacyGrid, ...appearance } = data.theme?.appearance || {};
+  data.theme = { preset: presetId, colors, appearance: { ...DEFAULT_THEME_APPEARANCE, ...appearance }, grid: { primary: { ...DEFAULT_THEME_GRID.primary, ...(data.theme?.grid?.primary || {}), ...(data.theme?.grid?.primary?.color ? {} : legacyGridColor ? { color: legacyGridColor } : {}) }, secondary: { ...DEFAULT_THEME_GRID.secondary, ...(data.theme?.grid?.secondary || {}) } } };
   Object.keys(data.theme.colors).forEach(key => { if (!/^#[0-9a-f]{6}$/i.test(data.theme.colors[key])) data.theme.colors[key] = preset.colors[key] || "#000000"; });
   Object.keys(data.theme.appearance).forEach(key => {
     const value = data.theme.appearance[key], token = typeof value === "string" ? value.slice(1) : "";
@@ -830,13 +893,24 @@ function normalise(data) {
     const isCustomColor = /^#[0-9a-f]{6}$/i.test(value || "");
     if (!isThemeColor && !isCustomColor) data.theme.appearance[key] = DEFAULT_THEME_APPEARANCE[key] || "@text";
   });
+  ["primary", "secondary"].forEach(key => {
+    const grid = data.theme.grid[key], token = typeof grid.color === "string" ? grid.color.slice(1) : "";
+    if (!(/^@[A-Za-z][A-Za-z0-9]*$/.test(grid.color || "") && data.theme.colors[token]) && !/^#[0-9a-f]{6}$/i.test(grid.color || "")) grid.color = DEFAULT_THEME_GRID[key].color;
+    grid.width = Math.max(0.25, Math.min(12, Number.isFinite(Number(grid.width)) ? Number(grid.width) : DEFAULT_THEME_GRID[key].width));
+    if (!["solid", "dashed", "dotted"].includes(grid.style)) grid.style = DEFAULT_THEME_GRID[key].style;
+  });
   if (typeof data.monthLocale !== "string" || !data.monthLocale) data.monthLocale = "fr-FR";
   const defaults = defaultTimelineSettings();
   data.timeline ||= {};
   data.timeline.levels = { ...defaults.levels, ...data.timeline.levels };
-  data.timeline.gridLevel ||= defaults.gridLevel;
+  data.timeline.gridPrimaryLevel = data.timeline.gridPrimaryLevel ?? data.timeline.gridLevel ?? defaults.gridPrimaryLevel;
+  data.timeline.gridSecondaryLevel = data.timeline.gridSecondaryLevel ?? defaults.gridSecondaryLevel;
+  if (!["year", "quarter", "month", "week"].includes(data.timeline.gridPrimaryLevel)) data.timeline.gridPrimaryLevel = defaults.gridPrimaryLevel;
+  if (data.timeline.gridSecondaryLevel !== "" && !["year", "quarter", "month", "week"].includes(data.timeline.gridSecondaryLevel)) data.timeline.gridSecondaryLevel = defaults.gridSecondaryLevel;
+  delete data.timeline.gridLevel;
   if (typeof data.timeline.showTodayLine !== "boolean") data.timeline.showTodayLine = defaults.showTodayLine;
   if (typeof data.timeline.showDateDependencies !== "boolean") data.timeline.showDateDependencies = defaults.showDateDependencies;
+  if (typeof data.timeline.compactMode !== "boolean") data.timeline.compactMode = defaults.compactMode;
   if (!/^#[0-9a-f]{6}$/i.test(data.timeline.backgroundColor || "") && !/^@[A-Za-z][A-Za-z0-9]*$/.test(data.timeline.backgroundColor || "")) data.timeline.backgroundColor = defaults.backgroundColor;
   data.timeline.backgroundOpacity = Math.max(0, Math.min(1, Number.isFinite(Number(data.timeline.backgroundOpacity)) ? Number(data.timeline.backgroundOpacity) : defaults.backgroundOpacity));
   if (!data.itemTypes.task) data.itemTypes.task = clone(emptyPlanning().itemTypes.task);
@@ -940,13 +1014,14 @@ function download(blob, filename) { const a = document.createElement("a"); a.hre
 function xml() { const out = svg.cloneNode(true); out.setAttribute("xmlns", NS); out.setAttribute("font-family", getComputedStyle(svg).fontFamily); out.querySelectorAll(".selected").forEach(n => n.classList.remove("selected")); out.querySelectorAll("[data-export-opacity]").forEach(n => { n.setAttribute("fill-opacity", n.dataset.exportOpacity); n.removeAttribute("data-export-opacity"); }); svg.querySelectorAll("text").forEach((source, i) => { const target = out.querySelectorAll("text")[i], c = getComputedStyle(source); ["fill", "font-family", "font-size", "font-weight", "font-style", "letter-spacing"].forEach(k => target.style.setProperty(k, c.getPropertyValue(k))); }); return new XMLSerializer().serializeToString(out); }
 function importData(file) { if (!file) return; const reader = new FileReader(); reader.onload = () => { try { const data = JSON.parse(reader.result); if (!valid(data)) throw 0; if (isDirty && !confirm("Les modifications non enregistrées seront perdues. Importer ce fichier ?")) return; const suggestion = file.name.replace(/\.json$/i, "") || "Planning importé"; applyPlanning(data, { dirty: true, imported: true }); const name = askPlanName("Nom du planning importé (il sera enregistré dans ce navigateur) :", suggestion); if (name === null) return; if (!name) return alert("L’import est chargé mais non enregistré. Cliquez sur Enregistrer lorsque vous aurez choisi un nom."); saveWithName(name); } catch (_) { alert("Le fichier sélectionné n’est pas un planning valide."); } }; reader.readAsText(file); }
 function saveWithName(name) { const plan = { id: newId("plan"), name, updatedAt: new Date().toISOString(), data: clone(planningData) }; savedPlans.push(plan); activePlanId = plan.id; try { writeSavedPlans(); isDirty = false; importedVersion = false; refreshSavedPlanList(); status(); } catch (_) { alert("L’import est chargé, mais n’a pas pu être enregistré dans ce navigateur."); } }
-function gridChoices() { const keys = new Set(visibleLevels().map(v => v.key)); [...gridTimelineLevel.options].forEach(v => v.disabled = !keys.has(v.value)); if (!keys.has(gridTimelineLevel.value)) gridTimelineLevel.value = visibleLevels()[0]?.key || ""; gridTimelineLevel.disabled = !keys.size; }
+function gridChoices() { const keys = new Set(visibleLevels().map(v => v.key)); [primaryGridTimelineLevel, secondaryGridTimelineLevel].forEach(select => { [...select.options].forEach(option => option.disabled = option.value !== "" && !keys.has(option.value)); if (select.value && !keys.has(select.value)) select.value = select === primaryGridTimelineLevel ? visibleLevels()[0]?.key || "" : ""; select.disabled = !keys.size; }); }
 function restoreTimelineSettings() {
   const settings = planningData.timeline;
   todayLineToggle.checked = settings.showTodayLine;
   dateDependenciesToggle.checked = settings.showDateDependencies;
   timelineLevels.forEach(level => { level.toggle.checked = settings.levels[level.key]; });
-  gridTimelineLevel.value = settings.gridLevel;
+  primaryGridTimelineLevel.value = settings.gridPrimaryLevel;
+  secondaryGridTimelineLevel.value = settings.gridSecondaryLevel;
   timelineLocale.value = timelineLocaleValue();
 }
 function displayRatio() { return Math.round((Number(planningData.layout.width) || 1500) / 15); }
@@ -1207,6 +1282,16 @@ function updateThemeAppearance(key, value) {
   planningData.theme.appearance[key] = value;
   isDirty = true; importedVersion = false; status(); render();
 }
+function updateThemeGrid(level, key, value) {
+  if (key === "color") {
+    const themeRole = /^@([A-Za-z][A-Za-z0-9]*)$/.exec(value || "")?.[1];
+    if ((themeRole && !themeColors()[themeRole]) || (!themeRole && !/^#[0-9a-f]{6}$/i.test(value || ""))) return;
+  }
+  if (key === "width") value = Math.max(0.25, Math.min(12, Number(value) || DEFAULT_THEME_GRID[level].width));
+  if (key === "style" && !["solid", "dashed", "dotted"].includes(value)) return;
+  planningData.theme.grid[level][key] = value;
+  isDirty = true; importedVersion = false; status(); render();
+}
 function renderThemeEditor() {
   editor.innerHTML = "";
   const card = document.createElement("div"); card.className = "editor-card";
@@ -1236,6 +1321,17 @@ function renderThemeEditor() {
   backgroundOpacityField.oninput = event => updateTimelineBackground("backgroundOpacity", event.target.value);
   const backgroundNote = document.createElement("p"); backgroundNote.className = "impact-note"; backgroundNote.textContent = "La couleur reste pleinement visible dans l’éditeur. Son opacité est appliquée aux exports SVG et PNG ; 0 produit un fond transparent.";
   card.append(section("Fond du planning", [fieldGrid(backgroundColor, backgroundOpacity), backgroundNote], false));
+  const gridFields = ["primary", "secondary"].flatMap(level => {
+    const grid = planningData.theme.grid[level], title = level === "primary" ? "Quadrillage principal" : "Quadrillage secondaire";
+    const color = colorPicker(`Couleur — ${title}`, grid.color, value => updateThemeGrid(level, "color", value));
+    const width = input(`Épaisseur — ${title}`, `grid-${level}-width`, grid.width, "number");
+    const widthInput = width.querySelector("input"); widthInput.min = "0.25"; widthInput.max = "12"; widthInput.step = "0.25"; widthInput.oninput = event => updateThemeGrid(level, "width", event.target.value);
+    const style = input(`Type — ${title}`, `grid-${level}-style`, grid.style, "select", [["solid", "Plein"], ["dashed", "Tirets"], ["dotted", "Points"]]);
+    style.querySelector("select").onchange = event => updateThemeGrid(level, "style", event.target.value);
+    return [color, fieldGrid(width, style)];
+  });
+  const gridNote = document.createElement("p"); gridNote.className = "hint"; gridNote.textContent = "Le quadrillage secondaire est volontairement discret par défaut et ne s’affiche que lorsqu’une périodicité lui est attribuée dans la frise.";
+  card.append(section("Quadrillage vertical", [gridNote, ...gridFields], false));
   const appearanceFields = THEME_APPEARANCE_OPTIONS.map(([key, label]) => colorPicker(label, themeAppearance(key), value => updateThemeAppearance(key, value)));
   const appearanceNote = document.createElement("p"); appearanceNote.className = "hint"; appearanceNote.textContent = "Choisissez une couleur du nuancier ou une couleur personnalisée pour chaque partie du rendu.";
   card.append(section("Attribution au planning", [appearanceNote, fieldGrid(...appearanceFields)], false));
@@ -1273,7 +1369,7 @@ renderEditor = function () {
 const originalClear = clear;
 clear = function () { restoreTimelineControls(); originalClear(); };
 
-svg.onclick = clear; document.getElementById("btnSave").onclick = save; document.getElementById("btnNew").onclick = createNewPlanning; document.getElementById("btnDeletePlan").onclick = deleteSavedPlanning; renamePlanButton.onclick = renameCurrentPlanning; loadButton.onclick = event => { event.stopPropagation(); const opening = loadMenu.hidden; loadMenu.hidden = !opening; loadButton.setAttribute("aria-expanded", String(opening)); }; loadMenu.onclick = event => { const option = event.target.closest("[data-plan-id]"); if (!option) return; closeLoadMenu(); loadSavedPlanning(option.dataset.planId); }; document.getElementById("btnData").onclick = () => download(new Blob([JSON.stringify(planningData, null, 2)], { type: "application/json" }), exportFilename("json")); document.getElementById("btnImport").onclick = () => document.getElementById("importFile").click(); document.getElementById("importFile").onchange = e => { importData(e.target.files[0]); e.target.value = ""; }; document.getElementById("btnSvg").onclick = () => download(new Blob([xml()], { type: "image/svg+xml;charset=utf-8" }), exportFilename("svg")); document.getElementById("btnPng").onclick = () => { const url = URL.createObjectURL(new Blob([xml()], { type: "image/svg+xml;charset=utf-8" })), image = new Image(); image.onload = () => { const c = document.createElement("canvas"), scale = 2; c.width = geometry.W * scale; c.height = geometry.H * scale; const ctx = c.getContext("2d"); ctx.drawImage(image, 0, 0, c.width, c.height); c.toBlob(b => { URL.revokeObjectURL(url); if (!b) return alert("L’export PNG a échoué."); download(b, exportFilename("png")); }, "image/png"); }; image.onerror = () => { URL.revokeObjectURL(url); alert("L’export PNG a échoué."); }; image.src = url; }; todayLineToggle.onchange = () => { planningData.timeline.showTodayLine = todayLineToggle.checked; markTimelineChange(); render(); }; dateDependenciesToggle.onchange = () => { planningData.timeline.showDateDependencies = dateDependenciesToggle.checked; markTimelineChange(); render(); }; timelineLevels.forEach(level => level.toggle.onchange = () => { planningData.timeline.levels[level.key] = level.toggle.checked; gridChoices(); planningData.timeline.gridLevel = gridTimelineLevel.value; markTimelineChange(); render(); }); gridTimelineLevel.onchange = () => { planningData.timeline.gridLevel = gridTimelineLevel.value; markTimelineChange(); render(); }; timelineLocale.onchange = () => { planningData.monthLocale = timelineLocale.value; markTimelineChange(); render(); }; window.addEventListener("beforeunload", e => { if (isDirty) { e.preventDefault(); e.returnValue = ""; } });
+svg.onclick = clear; document.getElementById("btnSave").onclick = save; document.getElementById("btnNew").onclick = createNewPlanning; document.getElementById("btnDeletePlan").onclick = deleteSavedPlanning; renamePlanButton.onclick = renameCurrentPlanning; loadButton.onclick = event => { event.stopPropagation(); const opening = loadMenu.hidden; loadMenu.hidden = !opening; loadButton.setAttribute("aria-expanded", String(opening)); }; loadMenu.onclick = event => { const option = event.target.closest("[data-plan-id]"); if (!option) return; closeLoadMenu(); loadSavedPlanning(option.dataset.planId); }; document.getElementById("btnData").onclick = () => download(new Blob([JSON.stringify(planningData, null, 2)], { type: "application/json" }), exportFilename("json")); document.getElementById("btnImport").onclick = () => document.getElementById("importFile").click(); document.getElementById("importFile").onchange = e => { importData(e.target.files[0]); e.target.value = ""; }; document.getElementById("btnSvg").onclick = () => download(new Blob([xml()], { type: "image/svg+xml;charset=utf-8" }), exportFilename("svg")); document.getElementById("btnPng").onclick = () => { const url = URL.createObjectURL(new Blob([xml()], { type: "image/svg+xml;charset=utf-8" })), image = new Image(); image.onload = () => { const c = document.createElement("canvas"), scale = 2; c.width = geometry.W * scale; c.height = geometry.H * scale; const ctx = c.getContext("2d"); ctx.drawImage(image, 0, 0, c.width, c.height); c.toBlob(b => { URL.revokeObjectURL(url); if (!b) return alert("L’export PNG a échoué."); download(b, exportFilename("png")); }, "image/png"); }; image.onerror = () => { URL.revokeObjectURL(url); alert("L’export PNG a échoué."); }; image.src = url; }; todayLineToggle.onchange = () => { planningData.timeline.showTodayLine = todayLineToggle.checked; markTimelineChange(); render(); }; dateDependenciesToggle.onchange = () => { planningData.timeline.showDateDependencies = dateDependenciesToggle.checked; markTimelineChange(); render(); }; timelineLevels.forEach(level => level.toggle.onchange = () => { planningData.timeline.levels[level.key] = level.toggle.checked; gridChoices(); planningData.timeline.gridPrimaryLevel = primaryGridTimelineLevel.value; planningData.timeline.gridSecondaryLevel = secondaryGridTimelineLevel.value; markTimelineChange(); render(); }); primaryGridTimelineLevel.onchange = () => { planningData.timeline.gridPrimaryLevel = primaryGridTimelineLevel.value; markTimelineChange(); render(); }; secondaryGridTimelineLevel.onchange = () => { planningData.timeline.gridSecondaryLevel = secondaryGridTimelineLevel.value; markTimelineChange(); render(); }; timelineLocale.onchange = () => { planningData.monthLocale = timelineLocale.value; markTimelineChange(); render(); }; window.addEventListener("beforeunload", e => { if (isDirty) { e.preventDefault(); e.returnValue = ""; } });
 
 function closeAddMenu() { addMenu.hidden = true; addOptionsButton.setAttribute("aria-expanded", "false"); }
 addButton.addEventListener("click", () => addPlanningObject("item"));

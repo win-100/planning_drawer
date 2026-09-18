@@ -50,8 +50,11 @@ Ce fichier peut être enregistré, par exemple, sous `mon-planning.json` puis im
     "appearance": {
       "timelineYear": "@primaryStrong",
       "timelineMonth": "@primary",
-      "timelineGrid": "@border",
       "todayLine": "@danger"
+    },
+    "grid": {
+      "primary": { "color": "@border", "width": 1.2, "style": "solid" },
+      "secondary": { "color": "@neutralSoft", "width": 0.6, "style": "dotted" }
     }
   },
   "itemTypes": {
@@ -117,11 +120,11 @@ Ce fichier peut être enregistré, par exemple, sous `mon-planning.json` puis im
 
 ### `theme`
 
-`preset` peut être `ocean`, `indigo`, `forest`, `sunset` ou `custom`. `colors` est le nuancier : `primary`, `primaryStrong`, `primarySoft`, `secondary`, `secondaryStrong`, `secondarySoft`, `accent`, `accentSoft`, `text`, `textSecondary`, `textOnDark`, `neutral`, `neutralSoft`, `surface`, `surfaceAlt`, `border`, `danger`, `warning` et `success`. `appearance` attribue une de ces couleurs à une partie du rendu, par exemple `timelineGrid: "@border"`. Les frises utilisent les paires `timelineYear` / `timelineYearAlternate`, `timelineQuarter` / `timelineQuarterAlternate`, `timelineMonth` / `timelineMonthAlternate` et `timelineWeek` / `timelineWeekAlternate` ; attribuez la même valeur aux deux rôles d’une paire pour désactiver visuellement l’alternance. Les styles, lanes, jalons, overlays et le fond peuvent eux aussi utiliser un rôle avec `@` : par exemple `"fill": "@secondarySoft"`. Une couleur hexadécimale reste une surcharge indépendante du thème. À l’ouverture, le planning est normalisé vers ces seuls rôles.
+`preset` peut être `ocean`, `indigo`, `forest`, `sunset` ou `custom`. `colors` est le nuancier : `primary`, `primaryStrong`, `primarySoft`, `secondary`, `secondaryStrong`, `secondarySoft`, `accent`, `accentSoft`, `text`, `textSecondary`, `textOnDark`, `neutral`, `neutralSoft`, `surface`, `surfaceAlt`, `border`, `danger`, `warning` et `success`. `appearance` attribue une de ces couleurs à une partie du rendu. Les frises utilisent les paires `timelineYear` / `timelineYearAlternate`, `timelineQuarter` / `timelineQuarterAlternate`, `timelineMonth` / `timelineMonthAlternate` et `timelineWeek` / `timelineWeekAlternate` ; attribuez la même valeur aux deux rôles d’une paire pour désactiver visuellement l’alternance. `grid.primary` et `grid.secondary` définissent chacune la `color`, la `width` (en pixels) et le `style` (`solid`, `dashed` ou `dotted`) d’un quadrillage vertical. Les styles, lanes, jalons, overlays et le fond peuvent eux aussi utiliser un rôle avec `@` : par exemple `"fill": "@secondarySoft"`. Une couleur hexadécimale reste une surcharge indépendante du thème. À l’ouverture, le planning est normalisé vers ces seuls rôles.
 
 ### `timeline`
 
-Toutes ces propriétés sont optionnelles. Les valeurs par défaut affichent les années et les mois, avec un quadrillage mensuel.
+Toutes ces propriétés sont optionnelles. Les valeurs par défaut affichent les années et les mois, avec un quadrillage principal mensuel. Le quadrillage secondaire n’est pas affiché par défaut.
 
 | Champ | Type | Défaut | Rôle |
 | --- | --- | --- | --- |
@@ -129,7 +132,8 @@ Toutes ces propriétés sont optionnelles. Les valeurs par défaut affichent les
 | `levels.quarter` | booléen | `false` | Affiche les trimestres. |
 | `levels.month` | booléen | `true` | Affiche les mois. |
 | `levels.week` | booléen | `false` | Affiche les semaines. |
-| `gridLevel` | chaîne | `"month"` | Périodicité du quadrillage vertical. |
+| `gridPrimaryLevel` | chaîne | `"month"` | Périodicité du quadrillage vertical principal. |
+| `gridSecondaryLevel` | chaîne | `""` | Périodicité du quadrillage vertical secondaire ; une chaîne vide le masque. |
 | `showTodayLine` | booléen | `true` | Affiche la ligne d’aujourd’hui. |
 | `backgroundColor` | couleur | `"#ffffff"` | Couleur de fond affichée dans l’éditeur. |
 | `backgroundOpacity` | nombre | `0` | Opacité du fond dans les exports SVG et PNG (`0` rend le fond transparent). La couleur reste visible dans l’éditeur pour faciliter le travail. |

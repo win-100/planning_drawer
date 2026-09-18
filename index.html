@@ -87,12 +87,22 @@
           <input id="toggleWeekTimeline" type="checkbox" />
           Semaines
         </label>
-        <label class="grid-choice" for="gridTimelineLevel">
-          Quadrillage vertical
-          <select id="gridTimelineLevel">
+        <label class="grid-choice" for="primaryGridTimelineLevel">
+          Quadrillage vertical principal
+          <select id="primaryGridTimelineLevel">
             <option value="year">Années</option>
             <option value="quarter">Trimestres</option>
             <option value="month" selected>Mois</option>
+            <option value="week">Semaines</option>
+          </select>
+        </label>
+        <label class="grid-choice" for="secondaryGridTimelineLevel">
+          Quadrillage vertical secondaire
+          <select id="secondaryGridTimelineLevel">
+            <option value="" selected>Non affiché</option>
+            <option value="year">Années</option>
+            <option value="quarter">Trimestres</option>
+            <option value="month">Mois</option>
             <option value="week">Semaines</option>
           </select>
         </label>

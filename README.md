@@ -49,7 +49,7 @@ Chaque panneau d’édition comporte un bouton **Supprimer**. Une confirmation d
 
 ## Frises et quadrillage
 
-La barre d'outils permet d'afficher ou masquer les années, trimestres, mois et semaines. Ils s'affichent toujours dans cet ordre. Le menu « Quadrillage vertical » ne propose que les frises visibles et détermine la périodicité des lignes verticales. Dans « Langue des libellés », choisissez le français ou l’anglais : les mois, trimestres et semaines s’adaptent (par exemple `T1` / `S32` en français et `Q1` / `W32` en anglais).
+La barre d'outils permet d'afficher ou masquer les années, trimestres, mois et semaines. Ils s'affichent toujours dans cet ordre. Les menus « Quadrillage vertical principal » et « Quadrillage vertical secondaire » ne proposent que les frises visibles et déterminent leur périodicité ; le secondaire est désactivé par défaut. Dans « Langue des libellés », choisissez le français ou l’anglais : les mois, trimestres et semaines s’adaptent (par exemple `T1` / `S32` en français et `Q1` / `W32` en anglais).
 
 Les données sont contenues dans les plannings enregistrés dans le navigateur ou dans les fichiers JSON importés/exportés.
 
@@ -61,7 +61,7 @@ Les styles réutilisables sont définis dans `planningData.itemTypes`. Un élém
 
 ## Thèmes de couleurs
 
-Le bouton **Thème** propose des palettes prêtes à l’emploi et un panneau séparant clairement le **Nuancier** de l’**Attribution au planning** (couleur employée pour les frises, le quadrillage, la ligne d’aujourd’hui et les dépendances). Chaque frise (années, trimestres, mois et semaines) possède une couleur principale et une couleur alternée ; utilisez la même couleur pour ne pas créer d’alternance. Le nuancier est organisé par rôle : couleurs principale et secondaire (chacune avec ses trois nuances), accent, texte principal/secondaire/sur fond sombre, gris neutres, fonds, bordure/quadrillage, puis états (alerte, attention, succès). Le thème fait partie des données du planning : il est donc conservé par l’enregistrement local et par les exports JSON.
+Le bouton **Thème** propose des palettes prêtes à l’emploi et un panneau séparant clairement le **Nuancier**, le **Quadrillage vertical** et l’**Attribution au planning**. Les quadrillages principal et secondaire disposent chacun de leur couleur, épaisseur et type de ligne ; le secondaire est fin et pointillé par défaut. Chaque frise (années, trimestres, mois et semaines) possède une couleur principale et une couleur alternée ; utilisez la même couleur pour ne pas créer d’alternance. Le nuancier est organisé par rôle : couleurs principale et secondaire (chacune avec ses trois nuances), accent, texte principal/secondaire/sur fond sombre, gris neutres, fonds, bordure/quadrillage, puis états (alerte, attention, succès). Le thème fait partie des données du planning : il est donc conservé par l’enregistrement local et par les exports JSON.
 
 Les styles partagés peuvent référencer un rôle du thème avec une valeur telle que `"@primary"`, `"@primarySoft"` ou `"@accent"`. Ces styles suivent alors tout changement de palette. Une valeur hexadécimale, par exemple `"#e11d48"`, est volontairement une **surcharge locale** : elle est conservée au changement de thème. Dans l’éditeur de style, « Fond lié au thème » permet de lier le fond d’un style partagé à l’un de ces rôles ; le sélecteur de couleur classique permet de le délier et de personnaliser cette couleur.
 
