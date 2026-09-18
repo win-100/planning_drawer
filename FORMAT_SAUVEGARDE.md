@@ -30,10 +30,14 @@ Ce fichier peut être enregistré, par exemple, sous `mon-planning.json` puis im
       "primary": "#22a79f",
       "primaryStrong": "#147b75",
       "primarySoft": "#c8ece9",
+      "secondary": "#5877c8",
+      "secondaryStrong": "#385a9f",
+      "secondarySoft": "#dfe7f7",
       "accent": "#e8ad72",
       "accentSoft": "#f4cfad",
       "text": "#101820",
       "textSecondary": "#5f6b72",
+      "textOnDark": "#ffffff",
       "neutral": "#8c9397",
       "neutralSoft": "#e9edef",
       "surface": "#ffffff",
@@ -113,7 +117,7 @@ Ce fichier peut être enregistré, par exemple, sous `mon-planning.json` puis im
 
 ### `theme`
 
-`preset` peut être `ocean`, `indigo`, `forest`, `sunset` ou `custom`. `colors` est le nuancier : `primary`, `primaryStrong`, `primarySoft`, `accent`, `accentSoft`, `text`, `textSecondary`, `neutral`, `neutralSoft`, `surface`, `surfaceAlt`, `border`, `danger`, `warning` et `success`. `appearance` attribue une de ces couleurs à une partie du rendu, par exemple `timelineGrid: "@border"`. Les styles, lanes, jalons, overlays et le fond peuvent eux aussi utiliser un rôle avec `@` : par exemple `"fill": "@primarySoft"`. Une couleur hexadécimale reste une surcharge indépendante du thème. À l’ouverture, le planning est normalisé vers ces seuls rôles.
+`preset` peut être `ocean`, `indigo`, `forest`, `sunset` ou `custom`. `colors` est le nuancier : `primary`, `primaryStrong`, `primarySoft`, `secondary`, `secondaryStrong`, `secondarySoft`, `accent`, `accentSoft`, `text`, `textSecondary`, `textOnDark`, `neutral`, `neutralSoft`, `surface`, `surfaceAlt`, `border`, `danger`, `warning` et `success`. `appearance` attribue une de ces couleurs à une partie du rendu, par exemple `timelineGrid: "@border"`. Les styles, lanes, jalons, overlays et le fond peuvent eux aussi utiliser un rôle avec `@` : par exemple `"fill": "@secondarySoft"`. Une couleur hexadécimale reste une surcharge indépendante du thème. À l’ouverture, le planning est normalisé vers ces seuls rôles.
 
 ### `timeline`
 
