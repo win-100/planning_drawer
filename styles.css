@@ -466,14 +466,16 @@ button:hover {
 
 .planning-item { cursor: pointer; }
 .planning-item.selected .planning-shape { stroke: #2563eb !important; stroke-width: 3 !important; }
-.planning-item.selected .planning-shape.milestone-star { fill: #2563eb; }
+.planning-item.selected .planning-shape.milestone-symbol { fill: #2563eb; stroke: #2563eb !important; }
 .planning-item.position-reference .planning-shape,
 .planning-item.relative-reference .planning-shape { stroke: #f59e0b !important; stroke-width: 3 !important; }
 .planning-item.date-reference .planning-shape { stroke: #7c3aed !important; stroke-width: 3 !important; }
-.planning-item.position-reference .planning-shape.milestone-star,
-.planning-item.relative-reference .planning-shape.milestone-star { fill: #f59e0b; }
-.planning-item.date-reference .planning-shape.milestone-star { fill: #7c3aed; }
+.planning-item.position-reference .planning-shape.milestone-symbol,
+.planning-item.relative-reference .planning-shape.milestone-symbol { fill: #f59e0b; stroke: #f59e0b !important; }
+.planning-item.date-reference .planning-shape.milestone-symbol { fill: #7c3aed; stroke: #7c3aed !important; }
 .planning-item.reference-candidate { cursor: crosshair; }
+.milestone-appearance,
+.milestone-appearance .editor-grid { display: contents; }
 .relative-position-controls { margin: 4px 0 10px; padding: 9px; border: 1px solid #dbe4e8; border-radius: 6px; background: #f8fbfc; }
 .relative-position-controls .editor-field { margin: 0 0 8px; }
 .date-dependency-control { min-width: 0; margin-bottom: 8px; }

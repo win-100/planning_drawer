@@ -261,14 +261,18 @@ Les jalons globaux se placent dans `milestones` à la racine. Les jalons d'une l
   "title": ["Go-live", "phase 1"],
   "sub": ["France"],
   "yOffset": 0,
-  "color": "#ef2d20"
+  "color": "#ef2d20",
+  "shape": "diamond",
+  "size": 24
 }
 ```
 
 | Type de jalon | Libellé | Champs communs |
 | --- | --- | --- |
-| Global | `title` : tableau de chaînes | `id`, `date`, `color`, `yOffset`, optionnellement `sub` (tableau de sous-libellés). |
-| Dans une lane | `label` : chaîne (les `\n` sont acceptés) | `id`, `date`, `color`, `yOffset`. |
+| Global | `title` : tableau de chaînes | `id`, `date`, `color`, `yOffset`, optionnellement `sub` (tableau de sous-libellés), `shape` et `size`. |
+| Dans une lane | `label` : chaîne (les `\n` sont acceptés) | `id`, `date`, `color`, `yOffset`, optionnellement `shape` et `size`. |
+
+`shape` peut être `star` (valeur par défaut), `circle`, `square`, `diamond`, `plus` ou `multiply`. `size` est la taille du symbole en pixels, entre 8 et 80 (18 par défaut).
 
 ## Overlays
 
