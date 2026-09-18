@@ -931,9 +931,9 @@ renderEditor = function () {
 
 const timelineControls = document.getElementById("timelineControls");
 const todayControl = todayLineToggle.closest(".today-toggle");
-const displayToolbar = document.getElementById("displayToolbar");
+const timelineControlStaging = document.getElementById("timelineControlStaging");
 const toolbar = document.querySelector(".toolbar");
-function restoreTimelineControls() { if (todayControl.parentElement !== displayToolbar) displayToolbar.appendChild(todayControl); if (timelineControls.parentElement !== toolbar) toolbar.appendChild(timelineControls); }
+function restoreTimelineControls() { if (todayControl.parentElement !== timelineControlStaging) timelineControlStaging.appendChild(todayControl); if (timelineControls.parentElement !== toolbar) toolbar.appendChild(timelineControls); }
 function planningDateBounds() {
   const dates = [];
   const add = value => value && dates.push(value);

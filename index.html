@@ -57,10 +57,6 @@
       <input id="importFile" type="file" accept="application/json,.json" hidden />
       <div id="displayToolbar" class="toolbar-group toolbar-group-display" aria-label="Affichage">
         <span class="toolbar-group-label">Affichage</span>
-        <label class="today-toggle" title="Afficher ou masquer la ligne correspondant à aujourd’hui">
-          <input id="toggleTodayLine" type="checkbox" checked />
-          <span class="today-icon" aria-hidden="true">│</span> Aujourd’hui
-        </label>
         <label class="today-toggle" title="Afficher ou masquer les liens entre les dates dépendantes">
           <input id="toggleDateDependencies" type="checkbox" />
           <span aria-hidden="true">↳</span> Dépendances
@@ -99,6 +95,12 @@
             <option value="month" selected>Mois</option>
             <option value="week">Semaines</option>
           </select>
+        </label>
+      </div>
+      <div id="timelineControlStaging" hidden>
+        <label class="today-toggle" title="Afficher ou masquer la ligne correspondant à aujourd’hui">
+          <input id="toggleTodayLine" type="checkbox" checked />
+          <span class="today-icon" aria-hidden="true">│</span> Aujourd’hui
         </label>
       </div>
     </div>
