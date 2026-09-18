@@ -4,15 +4,31 @@ const path = require("node:path");
 const root = __dirname;
 const outputDirectory = path.join(root, "dist");
 const outputFile = path.join(outputDirectory, "planning.html");
+const versionFile = path.join(root, ".build-version");
 
 const read = fileName => fs.readFileSync(path.join(root, fileName), "utf8");
 const inlineForScript = source => source.replace(/<\/script/gi, "<\\/script");
 const inlineForStyle = source => source.replace(/<\/style/gi, "<\\/style");
 
+const nextBuildVersion = () => {
+  if (!fs.existsSync(versionFile)) return "1.000";
+
+  const previousVersion = fs.readFileSync(versionFile, "utf8").trim();
+  const match = /^(\d+)\.(\d{3})$/.exec(previousVersion);
+  if (!match) {
+    throw new Error(`Version de build invalide : ${previousVersion}`);
+  }
+
+  const major = Number(match[1]);
+  const minor = Number(match[2]) + 1;
+  return `${major}.${String(minor).padStart(3, "0")}`;
+};
+
 const html = read("index.html");
 const css = read("styles.css");
 const javascript = read("planning.js");
 const favicon = fs.readFileSync(path.join(root, "favicon.svg")).toString("base64");
+const buildVersion = nextBuildVersion();
 
 const replacements = [
   {
@@ -36,6 +52,12 @@ const standaloneHtml = replacements.reduce((document, { source, target }) => {
   return document.replace(source, target);
 }, html);
 
+const standaloneHtmlWithVersion = standaloneHtml.replace(
+  "<!DOCTYPE html>",
+  `<!DOCTYPE html>\n<!-- Version de build : ${buildVersion} -->`
+);
+
 fs.mkdirSync(outputDirectory, { recursive: true });
-fs.writeFileSync(outputFile, standaloneHtml, "utf8");
-console.log(`Fichier autonome créé : ${path.relative(root, outputFile)}`);
+fs.writeFileSync(outputFile, standaloneHtmlWithVersion, "utf8");
+fs.writeFileSync(versionFile, `${buildVersion}\n`, "utf8");
+console.log(`Fichier autonome créé : ${path.relative(root, outputFile)} (version ${buildVersion})`);
