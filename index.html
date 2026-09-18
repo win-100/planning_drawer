@@ -54,6 +54,14 @@
           <button id="btnPng" title="Exporter l’image au format PNG"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="8" cy="9" r="1.5" /><path d="m5 17 5-5 3 3 3-3 3 5" /></svg>PNG</button>
         </div>
       </div>
+      <div class="toolbar-group" aria-label="Thème">
+        <span class="toolbar-group-label">Thème</span>
+        <label class="grid-choice" for="themeSelect">
+          <span class="visually-hidden">Thème de couleurs</span>
+          <select id="themeSelect" title="Changer la palette du planning"></select>
+        </label>
+        <button id="btnTheme" type="button" title="Personnaliser les couleurs du thème">Personnaliser</button>
+      </div>
       <input id="importFile" type="file" accept="application/json,.json" hidden />
       <div id="displayToolbar" class="toolbar-group toolbar-group-display" aria-label="Affichage">
         <span class="toolbar-group-label">Affichage</span>

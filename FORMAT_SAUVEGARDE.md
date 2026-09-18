@@ -24,10 +24,25 @@ Ce fichier peut être enregistré, par exemple, sous `mon-planning.json` puis im
     "defaultItemHeight": 30
   },
   "monthLocale": "fr-FR",
+  "theme": {
+    "preset": "ocean",
+    "colors": {
+      "primary": "#22a79f",
+      "primaryStrong": "#147b75",
+      "primarySoft": "#c8ece9",
+      "accent": "#e8ad72",
+      "accentSoft": "#f4cfad",
+      "text": "#101820",
+      "muted": "#8c9397",
+      "surface": "#ffffff",
+      "grid": "#e4e4e4",
+      "danger": "#ef2d20"
+    }
+  },
   "itemTypes": {
     "task": {
-      "fill": "#ffffff",
-      "stroke": "#1aa79f",
+      "fill": "@surface",
+      "stroke": "@primary",
       "strokeWidth": 1.4,
       "shape": "chevron",
       "h": 30,
@@ -67,7 +82,7 @@ Ce fichier peut être enregistré, par exemple, sous `mon-planning.json` puis im
 - Toutes les dates sont des chaînes au format ISO `AAAA-MM-JJ` (ex. `"2026-09-18"`).
 - `range.start` doit être antérieur ou égal à `range.end`. Choisissez une plage couvrant tous les objets, afin qu'ils soient visibles.
 - Les identifiants `id` sont des chaînes uniques dans l'ensemble du planning. Ils sont indispensables dès qu'une dépendance ou un positionnement relatif les référence. L'application en génère si nécessaire, mais il est préférable de les fournir.
-- Les couleurs peuvent être des couleurs CSS valides, par exemple `"#1aa79f"`, `"#fff"`, `"rgb(41, 146, 127)"`.
+- Les couleurs personnalisées sont au format hexadécimal `"#RRGGBB"`. Une référence de thème utilise le format `"@primary"` (voir ci-dessous).
 - Les valeurs de hauteur, décalage, largeur et marges sont des nombres en pixels ; les opacités sont normalement comprises entre `0` et `1`.
 
 ## Objet racine
@@ -81,8 +96,13 @@ Ce fichier peut être enregistré, par exemple, sous `mon-planning.json` puis im
 | `milestones` | tableau | Non | Jalons globaux, affichés au-dessus des lanes. Par défaut : `[]`. |
 | `overlays` | tableau | Non | Bandes colorées verticales couvrant la zone des lanes. Par défaut : `[]`. |
 | `itemTypes` | objet | Non | Styles partagés des éléments. Le style `task` est ajouté automatiquement s'il est absent. |
+| `theme` | objet | Non | Palette du planning. Absente, elle est complétée avec la palette Océan. |
 | `monthLocale` | chaîne | Non | Locale des libellés de mois et de trimestres, par exemple `"fr-FR"` ou `"en-US"`. Par défaut : `"fr-FR"`. Les trimestres s’affichent sans année (`T1` en français, `Q1` en anglais). |
 | `timeline` | objet | Non | Réglages d’affichage de la frise. |
+
+### `theme`
+
+`preset` peut être `ocean`, `indigo`, `forest`, `sunset` ou `custom`. `colors` contient les rôles `primary`, `primaryStrong`, `primarySoft`, `accent`, `accentSoft`, `text`, `muted`, `surface`, `grid` et `danger`. Les styles, lanes, jalons, overlays et le fond peuvent utiliser un rôle avec `@` : par exemple `"fill": "@primarySoft"`. Une couleur hexadécimale reste une surcharge indépendante du thème.
 
 ### `timeline`
 

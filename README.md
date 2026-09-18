@@ -45,6 +45,12 @@ Les éléments peuvent être placés dans le tableau racine `items`, sans lane :
 
 Les styles réutilisables sont définis dans `planningData.itemTypes`. Un élément choisit son style avec `type` ; un type peut définir `fill`, `fillOpacity`, `stroke`, `strokeWidth`, `strokeDasharray`, `shape` (`chevron` ou `rect`), `h`, `textColor` et `textClass`.
 
+## Thèmes de couleurs
+
+Le menu **Thème** propose des palettes prêtes à l’emploi et le bouton **Personnaliser** donne accès aux rôles de couleur (principale, déclinaisons claire/foncée, accent, texte, grille, etc.). Le thème fait partie des données du planning : il est donc conservé par l’enregistrement local et par les exports JSON.
+
+Les styles partagés peuvent référencer un rôle du thème avec une valeur telle que `"@primary"`, `"@primarySoft"` ou `"@accent"`. Ces styles suivent alors tout changement de palette. Une valeur hexadécimale, par exemple `"#e11d48"`, est volontairement une **surcharge locale** : elle est conservée au changement de thème. Dans l’éditeur de style, « Fond lié au thème » permet de lier le fond d’un style partagé à l’un de ces rôles ; le sélecteur de couleur classique permet de le délier et de personnaliser cette couleur.
+
 Chaque élément peut définir `h` ou `yOffset` lorsqu'il a besoin d'une taille ou d'une position particulière. Sinon, il reprend `h` de son type, puis `layout.defaultItemHeight`.
 
 ## Hauteur et position des lanes
