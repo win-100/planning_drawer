@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Planning visuel</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="page">
+    <div class="toolbar" aria-label="Actions du planning">
+      <div class="current-planning" aria-label="Planning actuellement ouvert">
+        <span id="currentPlanningName" class="current-planning-name">Planning non enregistré</span>
+        <button id="btnRenamePlan" class="rename-plan" type="button" title="Renommer le planning" aria-label="Renommer le planning"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 16.5-.8 4.3 4.3-.8L18.2 9.3l-3.5-3.5L4 16.5Zm12.1-9.6 1.2-1.2a1.8 1.8 0 0 1 2.5 0l.4.4a1.8 1.8 0 0 1 0 2.5L19 9.8l-2.9-2.9Z" /></svg></button>
+      </div>
+      <div class="toolbar-group toolbar-group-create" aria-label="Créer">
+        <div class="add-menu">
+        <div class="add-button-group">
+          <button id="btnAdd" type="button" title="Ajouter un élément au planning"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>Ajouter</button>
+          <button id="btnAddOptions" class="add-options" type="button" aria-label="Choisir un autre type d’ajout" aria-haspopup="true" aria-expanded="false" title="Autres types d’ajout"><span class="button-caret" aria-hidden="true">⌄</span></button>
+        </div>
+        <div id="addMenu" class="add-menu-popover" role="menu" hidden>
+          <button type="button" role="menuitem" data-add-type="item">Élément</button>
+          <button type="button" role="menuitem" data-add-type="milestone">Jalon</button>
+          <button type="button" role="menuitem" data-add-type="overlay">Overlay</button>
+          <button type="button" role="menuitem" data-add-type="lane">Lane</button>
+        </div>
+        </div>
+      </div>
+      <div class="toolbar-group" aria-label="Ouvrir un planning">
+        <span class="toolbar-group-label">Ouvrir</span>
+        <div class="toolbar-actions">
+          <button id="btnNew" title="Créer un planning vide"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>Nouveau</button>
+          <div class="load-menu">
+            <button id="btnLoad" type="button" title="Choisir un planning à charger" aria-haspopup="true" aria-expanded="false">Charger</button>
+            <div id="loadMenu" class="load-menu-list" role="menu" hidden></div>
+          </div>
+          <button id="btnImport" title="Importer un fichier de données JSON"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0-4 4m4-4 4 4M5 14v6h14v-6" /></svg>Importer</button>
+        </div>
+      </div>
+      <div class="toolbar-group" aria-label="Planning courant">
+        <span class="toolbar-group-label">Planning courant</span>
+        <div class="toolbar-actions">
+          <button id="btnSave" class="button-emphasis" title="Enregistrer le planning dans ce navigateur"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h12l3 3v13H5zM8 4v6h8V4M8 20v-6h8v6" /></svg><span id="saveLabel">Enregistrer</span> <span id="saveAlert" class="save-alert" aria-live="polite"></span></button>
+          <button id="btnDeletePlan" class="button-danger" title="Supprimer le planning ouvert de ce navigateur">Supprimer</button>
+        </div>
+      </div>
+      <div class="toolbar-group" aria-label="Exporter">
+        <span class="toolbar-group-label">Exporter</span>
+        <div class="toolbar-actions">
+          <button id="btnData" title="Exporter les données au format JSON"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v12m0 0-4-4m4 4 4-4M5 14v6h14v-6" /></svg>Données</button>
+          <button id="btnSvg" title="Exporter l’image au format SVG"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="8" cy="9" r="1.5" /><path d="m5 17 5-5 3 3 3-3 3 5" /></svg>SVG</button>
+          <button id="btnPng" title="Exporter l’image au format PNG"><svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="8" cy="9" r="1.5" /><path d="m5 17 5-5 3 3 3-3 3 5" /></svg>PNG</button>
+        </div>
+      </div>
+      <input id="importFile" type="file" accept="application/json,.json" hidden />
+      <div id="displayToolbar" class="toolbar-group toolbar-group-display" aria-label="Affichage">
+        <span class="toolbar-group-label">Affichage</span>
+        <label class="today-toggle" title="Afficher ou masquer la ligne correspondant à aujourd’hui">
+          <input id="toggleTodayLine" type="checkbox" checked />
+          <span class="today-icon" aria-hidden="true">│</span> Aujourd’hui
+        </label>
+        <label class="today-toggle" title="Afficher ou masquer les liens entre les dates dépendantes">
+          <input id="toggleDateDependencies" type="checkbox" />
+          <span aria-hidden="true">↳</span> Dépendances
+        </label>
+      </div>
+      <div id="timelineControls" class="timeline-controls" aria-label="Réglages de la frise">
+        <label class="grid-choice" for="timelineLocale">
+          Langue des libellés
+          <select id="timelineLocale">
+            <option value="fr-FR">Français</option>
+            <option value="en-US">English</option>
+          </select>
+        </label>
+        <label class="today-toggle">
+          <input id="toggleYearTimeline" type="checkbox" checked />
+          Années
+        </label>
+        <label class="today-toggle">
+          <input id="toggleQuarterTimeline" type="checkbox" />
+          Trimestres
+        </label>
+        <label class="today-toggle">
+          <input id="toggleMonthTimeline" type="checkbox" checked />
+          Mois
+        </label>
+        <label class="today-toggle">
+          <input id="toggleWeekTimeline" type="checkbox" />
+          Semaines
+        </label>
+        <label class="grid-choice" for="gridTimelineLevel">
+          Quadrillage vertical
+          <select id="gridTimelineLevel">
+            <option value="year">Années</option>
+            <option value="quarter">Trimestres</option>
+            <option value="month" selected>Mois</option>
+            <option value="week">Semaines</option>
+          </select>
+        </label>
+      </div>
+    </div>
+    <div id="workspace" class="workspace editor-right">
+      <aside id="editor" class="editor-panel" aria-live="polite"></aside>
+      <div class="wrap">
+        <svg id="planning" xmlns="http://www.w3.org/2000/svg" aria-label="Planning"></svg>
+      </div>
+    </div>
+  </div>
+  <script src="planning.js"></script>
+</body>
+</html>

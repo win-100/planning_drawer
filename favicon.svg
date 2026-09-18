@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>Planning</title>
+  <rect width="64" height="64" rx="14" fill="#147b75"/>
+  <rect x="12" y="15" width="40" height="35" rx="5" fill="#ffffff"/>
+  <path d="M12 25h40" stroke="#c8ece9" stroke-width="4"/>
+  <path d="M22 12v8M42 12v8" stroke="#ffffff" stroke-width="5" stroke-linecap="round"/>
+  <path d="M20 33h13M20 41h22" stroke="#22a79f" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="42" cy="33" r="4" fill="#ef2d20"/>
+</svg>
