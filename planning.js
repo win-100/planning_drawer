@@ -970,12 +970,6 @@ function renderTimelineEditor() {
   const endRow = document.createElement("div"); endRow.className = "timeline-date-row"; endRow.append(end, latest);
   dates.append(startRow, endRow);
   card.append(section("Période", [intro, dates]));
-  const backgroundColor = colorPicker("Couleur de fond", planningData.timeline.backgroundColor, value => updateTimelineBackground("backgroundColor", value));
-  const backgroundOpacity = input("Opacité à l’export (0 à 1)", "backgroundOpacity", planningData.timeline.backgroundOpacity, "number");
-  const backgroundOpacityField = backgroundOpacity.querySelector("input"); backgroundOpacityField.min = "0"; backgroundOpacityField.max = "1"; backgroundOpacityField.step = "0.01";
-  backgroundOpacityField.oninput = event => updateTimelineBackground("backgroundOpacity", event.target.value);
-  const backgroundNote = document.createElement("p"); backgroundNote.className = "impact-note"; backgroundNote.textContent = "La couleur reste pleinement visible dans l’éditeur. Son opacité est appliquée aux exports SVG et PNG ; 0 produit un fond transparent.";
-  card.append(section("Fond du planning", [fieldGrid(backgroundColor, backgroundOpacity), backgroundNote], false));
   card.appendChild(section("Ligne d’aujourd’hui", [todayControl], false));
   card.appendChild(section("Affichage", [timelineControls], false));
   const actions = document.createElement("div"); actions.className = "editor-actions"; const move = document.createElement("button"); move.textContent = editorSide === "left" ? "Déplacer à droite →" : "← Déplacer à gauche"; move.onclick = () => { editorSide = editorSide === "left" ? "right" : "left"; layout(); renderTimelineEditor(); }; actions.appendChild(move); card.appendChild(actions);
@@ -1023,6 +1017,12 @@ function renderThemeEditor() {
     group.append(heading, controls); groups.appendChild(group);
   });
   card.append(section("Nuancier", [note, preset, groups], true));
+  const backgroundColor = colorPicker("Couleur de fond", planningData.timeline.backgroundColor, value => updateTimelineBackground("backgroundColor", value));
+  const backgroundOpacity = input("Opacité à l’export (0 à 1)", "backgroundOpacity", planningData.timeline.backgroundOpacity, "number");
+  const backgroundOpacityField = backgroundOpacity.querySelector("input"); backgroundOpacityField.min = "0"; backgroundOpacityField.max = "1"; backgroundOpacityField.step = "0.01";
+  backgroundOpacityField.oninput = event => updateTimelineBackground("backgroundOpacity", event.target.value);
+  const backgroundNote = document.createElement("p"); backgroundNote.className = "impact-note"; backgroundNote.textContent = "La couleur reste pleinement visible dans l’éditeur. Son opacité est appliquée aux exports SVG et PNG ; 0 produit un fond transparent.";
+  card.append(section("Fond du planning", [fieldGrid(backgroundColor, backgroundOpacity), backgroundNote], false));
   const appearanceFields = THEME_APPEARANCE_OPTIONS.map(([key, label]) => colorPicker(label, themeAppearance(key), value => updateThemeAppearance(key, value)));
   const appearanceNote = document.createElement("p"); appearanceNote.className = "hint"; appearanceNote.textContent = "Choisissez une couleur du nuancier ou une couleur personnalisée pour chaque partie du rendu.";
   card.append(section("Attribution au planning", [appearanceNote, fieldGrid(...appearanceFields)], false));
