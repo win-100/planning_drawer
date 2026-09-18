@@ -26,13 +26,13 @@ const THEME_PRESETS = {
 // colours without prescribing where each one is used.
 const THEME_COLOR_OPTIONS = [["primary", "Principale"], ["primaryStrong", "Principale — foncée"], ["primarySoft", "Principale — claire"], ["secondary", "Secondaire"], ["secondaryStrong", "Secondaire — foncée"], ["secondarySoft", "Secondaire — claire"], ["accent", "Accent"], ["accentSoft", "Accent — clair"], ["text", "Texte principal"], ["textSecondary", "Texte secondaire"], ["textOnDark", "Texte sur fond sombre"], ["neutral", "Gris neutre"], ["neutralSoft", "Gris neutre — clair"], ["surface", "Fond principal"], ["surfaceAlt", "Fond alternatif"], ["border", "Bordure / quadrillage"], ["danger", "Alerte / échéance critique"], ["warning", "Attention"], ["success", "Succès / validation"]];
 const THEME_COLOR_GROUPS = [["Principale", ["primary", "primaryStrong", "primarySoft"]], ["Secondaire", ["secondary", "secondaryStrong", "secondarySoft"]], ["Accent", ["accent", "accentSoft"]], ["Texte", ["text", "textSecondary", "textOnDark"]], ["Neutres", ["neutral", "neutralSoft", "border"]], ["Fonds", ["surface", "surfaceAlt"]], ["États", ["danger", "warning", "success"]]];
-const THEME_APPEARANCE_OPTIONS = [["timelineYear", "Frise — années"], ["timelineYearAlternate", "Frise — années alternées"], ["timelineQuarter", "Frise — trimestres"], ["timelineMonth", "Frise — mois"], ["timelineWeek", "Frise — semaines"], ["timelineGrid", "Quadrillage vertical"], ["todayLine", "Ligne d’aujourd’hui"], ["dependencyIncoming", "Dépendance entrante"], ["dependencyOutgoing", "Dépendance sortante"], ["dependencyNeutral", "Dépendance neutre"]];
-const DEFAULT_THEME_APPEARANCE = { timelineYear: "@primaryStrong", timelineYearAlternate: "@primary", timelineQuarter: "@primaryStrong", timelineMonth: "@primary", timelineWeek: "@primarySoft", timelineGrid: "@border", todayLine: "@danger", dependencyIncoming: "@accent", dependencyOutgoing: "@primaryStrong", dependencyNeutral: "@neutral" };
+const THEME_APPEARANCE_OPTIONS = [["timelineYear", "Frise — années"], ["timelineYearAlternate", "Frise — années alternées"], ["timelineQuarter", "Frise — trimestres"], ["timelineQuarterAlternate", "Frise — trimestres alternés"], ["timelineMonth", "Frise — mois"], ["timelineMonthAlternate", "Frise — mois alternés"], ["timelineWeek", "Frise — semaines"], ["timelineWeekAlternate", "Frise — semaines alternées"], ["timelineGrid", "Quadrillage vertical"], ["todayLine", "Ligne d’aujourd’hui"], ["dependencyIncoming", "Dépendance entrante"], ["dependencyOutgoing", "Dépendance sortante"], ["dependencyNeutral", "Dépendance neutre"]];
+const DEFAULT_THEME_APPEARANCE = { timelineYear: "@primaryStrong", timelineYearAlternate: "@primary", timelineQuarter: "@primaryStrong", timelineQuarterAlternate: "@primaryStrong", timelineMonth: "@primary", timelineMonthAlternate: "@primary", timelineWeek: "@primarySoft", timelineWeekAlternate: "@primarySoft", timelineGrid: "@border", todayLine: "@danger", dependencyIncoming: "@accent", dependencyOutgoing: "@primaryStrong", dependencyNeutral: "@neutral" };
 const timelineLevels = [
   { key: "year", toggle: document.getElementById("toggleYearTimeline"), h: 20, fillRole: "timelineYear", altRole: "timelineYearAlternate", cls: "year-label" },
-  { key: "quarter", toggle: document.getElementById("toggleQuarterTimeline"), h: 24, fillRole: "timelineQuarter", cls: "quarter-label" },
-  { key: "month", toggle: document.getElementById("toggleMonthTimeline"), h: 40, fillRole: "timelineMonth", cls: "month-label" },
-  { key: "week", toggle: document.getElementById("toggleWeekTimeline"), h: 22, fillRole: "timelineWeek", cls: "week-label" }
+  { key: "quarter", toggle: document.getElementById("toggleQuarterTimeline"), h: 24, fillRole: "timelineQuarter", altRole: "timelineQuarterAlternate", cls: "quarter-label" },
+  { key: "month", toggle: document.getElementById("toggleMonthTimeline"), h: 40, fillRole: "timelineMonth", altRole: "timelineMonthAlternate", cls: "month-label" },
+  { key: "week", toggle: document.getElementById("toggleWeekTimeline"), h: 22, fillRole: "timelineWeek", altRole: "timelineWeekAlternate", cls: "week-label" }
 ];
 const defaultTimelineSettings = () => ({
   levels: { year: true, quarter: false, month: true, week: false },
@@ -705,7 +705,12 @@ function normalise(data) {
   const colors = Object.fromEntries(Object.keys(preset.colors).map(key => [key, requestedColors[key] ?? preset.colors[key]]));
   data.theme = { preset: presetId, colors, appearance: { ...DEFAULT_THEME_APPEARANCE, ...(data.theme?.appearance || {}) } };
   Object.keys(data.theme.colors).forEach(key => { if (!/^#[0-9a-f]{6}$/i.test(data.theme.colors[key])) data.theme.colors[key] = preset.colors[key] || "#000000"; });
-  Object.keys(data.theme.appearance).forEach(key => { const value = data.theme.appearance[key], token = typeof value === "string" ? value.slice(1) : ""; if (!/^@[A-Za-z][A-Za-z0-9]*$/.test(value || "") || !data.theme.colors[token]) data.theme.appearance[key] = DEFAULT_THEME_APPEARANCE[key] || "@text"; });
+  Object.keys(data.theme.appearance).forEach(key => {
+    const value = data.theme.appearance[key], token = typeof value === "string" ? value.slice(1) : "";
+    const isThemeColor = /^@[A-Za-z][A-Za-z0-9]*$/.test(value || "") && data.theme.colors[token];
+    const isCustomColor = /^#[0-9a-f]{6}$/i.test(value || "");
+    if (!isThemeColor && !isCustomColor) data.theme.appearance[key] = DEFAULT_THEME_APPEARANCE[key] || "@text";
+  });
   if (typeof data.monthLocale !== "string" || !data.monthLocale) data.monthLocale = "fr-FR";
   const defaults = defaultTimelineSettings();
   data.timeline ||= {};
@@ -989,15 +994,16 @@ function updateThemeColor(key, value) {
   applyThemeToApp();
   isDirty = true; importedVersion = false; status(); render();
 }
-function updateThemeAppearance(key, token) {
-  if (!themeColors()[token]) return;
-  planningData.theme.appearance[key] = `@${token}`;
+function updateThemeAppearance(key, value) {
+  const isThemeColor = /^@([A-Za-z][A-Za-z0-9]*)$/.exec(value || "")?.[1];
+  if ((isThemeColor && !themeColors()[isThemeColor]) || (!isThemeColor && !/^#[0-9a-f]{6}$/i.test(value || ""))) return;
+  planningData.theme.appearance[key] = value;
   isDirty = true; importedVersion = false; status(); render();
 }
 function renderThemeEditor() {
   editor.innerHTML = "";
   const card = document.createElement("div"); card.className = "editor-card";
-  const top = document.createElement("div"); top.className = "editor-heading"; top.append(document.createTextNode("Thème de couleurs"));
+  const top = document.createElement("div"); top.className = "editor-heading"; top.append(document.createTextNode("Thème"));
   const close = document.createElement("button"); close.textContent = "×"; close.title = "Fermer"; close.onclick = clear; top.appendChild(close); card.appendChild(top);
   const note = document.createElement("p"); note.className = "impact-note"; note.textContent = "Le nuancier distingue les couleurs de contenu, les neutres (texte, fonds et bordures) et les états. Leur usage dans le planning se règle séparément plus bas. Les couleurs choisies directement sur un élément restent intactes.";
   const preset = input("Palette de départ", "theme-preset", planningData.theme.preset, "select", [...Object.entries(THEME_PRESETS).map(([id, theme]) => [id, theme.name]), ["custom", "Personnalisé"]]);
@@ -1017,11 +1023,8 @@ function renderThemeEditor() {
     group.append(heading, controls); groups.appendChild(group);
   });
   card.append(section("Nuancier", [note, preset, groups], true));
-  const appearanceFields = THEME_APPEARANCE_OPTIONS.map(([key, label]) => {
-    const token = /^@(.+)$/.exec(themeAppearance(key))?.[1] || "primary";
-    return palettePicker(label, token, THEME_COLOR_OPTIONS, selected => updateThemeAppearance(key, selected));
-  });
-  const appearanceNote = document.createElement("p"); appearanceNote.className = "hint"; appearanceNote.textContent = "Ces choix n’ajoutent aucune couleur : ils attribuent une couleur du nuancier à chaque partie du rendu.";
+  const appearanceFields = THEME_APPEARANCE_OPTIONS.map(([key, label]) => colorPicker(label, themeAppearance(key), value => updateThemeAppearance(key, value)));
+  const appearanceNote = document.createElement("p"); appearanceNote.className = "hint"; appearanceNote.textContent = "Choisissez une couleur du nuancier ou une couleur personnalisée pour chaque partie du rendu.";
   card.append(section("Attribution au planning", [appearanceNote, fieldGrid(...appearanceFields)], false));
   editor.appendChild(card); layout();
 }
