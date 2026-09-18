@@ -1081,12 +1081,14 @@ renderEditor = function () {
       appearance.querySelector('[data-key="yOffset"]')?.closest("label")?.remove();
     }
     if (found?.object && actions) {
+      addMilestoneVerticalLineEditor(found.object);
       const offsetLabel = relativeMode(found.object) === "absolute" ? "Décalage vertical" : "Offset supplémentaire";
       const offset = input(offsetLabel, "yOffset", found.object.yOffset ?? 0, "number");
       offset.querySelector("input").oninput = () => update("yOffset", offset.querySelector("input").value);
       actions.before(section("Positionnement", [relativePositionControls(found.object), offset], false));
+      const stacking = [...editor.querySelectorAll(".editor-section")].find(details => details.querySelector("summary")?.textContent === "Superposition");
+      if (stacking) actions.before(stacking);
     }
-    if (found?.object) addMilestoneVerticalLineEditor(found.object);
   }
 };
 
