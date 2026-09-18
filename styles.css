@@ -507,7 +507,7 @@ button:hover {
   display: block;
   min-width: 0;
   max-width: 100%;
-  width: 100%;
+  width: var(--display-width, 100%);
   height: auto;
   /* Le SVG exporté doit aussi porter explicitement cette police. */
   font-family: Arial, Helvetica, sans-serif;

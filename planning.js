@@ -367,7 +367,7 @@ function laneContentHeight(items, milestones, lane, milestoneTopInset = 0) {
   return Math.max(Number(lane.minHeight) || 0, Math.max(...bottoms) + (lane.paddingBottom ?? 0));
 }
 function visibleLevels() { return timelineLevels.filter(v => v.toggle.checked).map(v => ({ ...v, height: planningData.layout[`${v.key}Height`] ?? v.h })); }
-function setup() { const c = planningData.layout, levels = visibleLevels(), header = levels.reduce((n, v, i) => n + v.height + (i ? 2 : 0), 0), width = c.width ?? 1500, left = c.left ?? 86, right = c.right ?? 16, start = new Date(`${planningData.range.start}T00:00:00`), end = new Date(`${planningData.range.end}T00:00:00`); x = date => left + ((new Date(`${date}T00:00:00`) - start) / (end - start)) * (width - left - right);
+function setup() { const c = planningData.layout, levels = visibleLevels(), header = levels.reduce((n, v, i) => n + v.height + (i ? 2 : 0), 0), width = c.width ?? 1500, left = c.left ?? 86, right = c.right ?? 16, start = new Date(`${planningData.range.start}T00:00:00`), end = new Date(`${planningData.range.end}T00:00:00`); svg.style.setProperty("--display-width", `${Math.min(100, Math.max(1, Math.round(width / 15)))}%`); x = date => left + ((new Date(`${date}T00:00:00`) - start) / (end - start)) * (width - left - right);
   // Unassigned items use the same vertical positioning model as lane items:
   // start just below the timeline, then apply their yOffset.
   unlanedArea._y = Math.max((c.timelineTop ?? 58), (c.topMonths ?? 8) + header) + (c.laneGap ?? 5);
