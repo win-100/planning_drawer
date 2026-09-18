@@ -519,6 +519,27 @@ function palettePicker(label, value, options, onChange, { customLabel } = {}) {
   paintButton(value); button.onclick = event => { event.stopPropagation(); const opening = list.hidden; document.querySelectorAll(".palette-picker-list").forEach(menu => menu.hidden = true); list.hidden = !opening; button.setAttribute("aria-expanded", String(opening)); };
   wrap.append(button, list); return wrap;
 }
+function colorPicker(label, value, onChange, linkTheme = true) {
+  const wrap = document.createElement("div"); wrap.className = "color-picker";
+  const token = /^@([A-Za-z][A-Za-z0-9]*)$/.exec(value || "")?.[1];
+  const optionFor = name => THEME_COLOR_OPTIONS.find(([candidate]) => candidate === name);
+  const button = document.createElement("button"); button.type = "button"; button.className = "color-picker-button"; button.setAttribute("aria-haspopup", "dialog"); button.setAttribute("aria-expanded", "false");
+  const menu = document.createElement("div"); menu.className = "color-picker-menu"; menu.hidden = true;
+  const caption = document.createElement("span"); caption.className = "color-picker-caption"; caption.textContent = label;
+  const swatch = document.createElement("span"); swatch.className = "palette-swatch"; swatch.style.background = resolveColor(value);
+  const name = document.createElement("span"); name.textContent = optionFor(token)?.[1] || "Personnalisée";
+  button.append(swatch, name);
+  const choose = next => { swatch.style.background = resolveColor(next); name.textContent = optionFor(/^@(.+)$/.exec(next)?.[1])?.[1] || "Personnalisée"; menu.hidden = true; button.setAttribute("aria-expanded", "false"); onChange(next); };
+  const palette = document.createElement("div"); palette.className = "color-picker-palette";
+  THEME_COLOR_OPTIONS.forEach(([name, title]) => {
+    const option = document.createElement("button"); option.type = "button"; option.className = "color-picker-swatch" + (token === name ? " is-selected" : ""); option.style.background = resolveColor(`@${name}`); option.title = title; option.setAttribute("aria-label", title); option.onclick = () => choose(linkTheme ? `@${name}` : resolveColor(`@${name}`)); palette.appendChild(option);
+  });
+  const custom = document.createElement("label"); custom.className = "color-picker-custom"; custom.append("Personnalisée");
+  const customInput = document.createElement("input"); customInput.type = "color"; customInput.value = color(value); customInput.setAttribute("aria-label", `${label} personnalisée`); customInput.oninput = () => choose(customInput.value); custom.appendChild(customInput);
+  menu.append(palette, custom);
+  button.onclick = event => { event.stopPropagation(); const opening = menu.hidden; document.querySelectorAll(".color-picker-menu, .palette-picker-list").forEach(popover => popover.hidden = true); if (opening) { menu.hidden = false; const anchor = button.getBoundingClientRect(), bounds = menu.getBoundingClientRect(); const left = Math.max(12, Math.min(anchor.right - bounds.width, window.innerWidth - bounds.width - 12)); const top = anchor.bottom + bounds.height + 2 <= window.innerHeight - 12 ? anchor.bottom + 2 : Math.max(12, anchor.top - bounds.height - 2); menu.style.left = `${left}px`; menu.style.top = `${top}px`; } else menu.hidden = true; button.setAttribute("aria-expanded", String(opening)); };
+  wrap.append(caption, button, menu); return wrap;
+}
 function fieldGrid(...fields) { const grid = document.createElement("div"); grid.className = "editor-grid"; grid.append(...fields); return grid; }
 function editorSectionType() {
   if (selection?.type?.includes("milestone")) return "milestone";
@@ -828,7 +849,20 @@ function relativePositionControls(item) {
   referenceLine.append(description, pick); wrap.appendChild(referenceLine);
   return wrap;
 }
-const baseRenderEditor = renderEditor;
+function compactColorInputs(source, change) {
+  const found = current();
+  if (!found?.object) return;
+  editor.querySelectorAll('input[type="color"]').forEach(field => {
+    const key = field.dataset.key;
+    if (!key) return;
+    const label = field.closest("label")?.childNodes[0]?.textContent || "Couleur";
+    const value = source?.[key] ?? found.object[key] ?? field.value;
+    const picker = colorPicker(label, value, next => (change || update)(key, next));
+    field.closest("label")?.replaceWith(picker);
+  });
+}
+const originalBaseRenderEditor = renderEditor;
+const baseRenderEditor = () => { originalBaseRenderEditor(); compactColorInputs(); };
 renderEditor = function () {
   if (selection?.type === "timeline") return renderTimelineEditor();
   if (selection?.type === "theme") return renderThemeEditor();
@@ -861,9 +895,7 @@ renderEditor = function () {
   const styleContent = [styleActions];
   if (editingStyleName === activeStyle) {
     const impact = document.createElement("p"); impact.className = "impact-note"; impact.textContent = styleUsageCount(activeStyle) + " élément" + (styleUsageCount(activeStyle) > 1 ? "s seront" : " sera") + " impacté" + (styleUsageCount(activeStyle) > 1 ? "s" : "") + " par la modification de ce style.";
-    const linkedToken = /^@([A-Za-z][A-Za-z0-9]*)$/.exec(shared.fill || "")?.[1] || "custom";
-    const themeLink = palettePicker("Fond lié au thème", linkedToken, THEME_COLOR_OPTIONS, token => { if (token !== "custom") { updateSharedStyle(activeStyle, "fill", `@${token}`); renderEditor(); } }, { customLabel: "Couleur personnalisée" });
-    styleContent.push(impact, themeLink, fieldGrid(input("Couleur de fond", "fill", color(shared.fill), "color"), input("Couleur du texte", "textColor", color(shared.textColor), "color")), input("Forme", "shape", shared.shape ?? "rect", "select", [["chevron", "Chevron"], ["rect", "Rectangle"]]), fieldGrid(input("Contour", "outline", hasOutline(shared.stroke), "checkbox"), input("Pointillés", "dashed", Boolean(shared.strokeDasharray), "checkbox")), input("Couleur du contour", "stroke", color(shared.stroke), "color"));
+    styleContent.push(impact, fieldGrid(input("Couleur de fond", "fill", color(shared.fill), "color"), input("Couleur du texte", "textColor", color(shared.textColor), "color")), input("Forme", "shape", shared.shape ?? "rect", "select", [["chevron", "Chevron"], ["rect", "Rectangle"]]), fieldGrid(input("Contour", "outline", hasOutline(shared.stroke), "checkbox"), input("Pointillés", "dashed", Boolean(shared.strokeDasharray), "checkbox")), input("Couleur du contour", "stroke", color(shared.stroke), "color"));
   }
   const sharedStyle = section("Style", styleContent, false);
   card.appendChild(sharedStyle);
@@ -874,6 +906,15 @@ renderEditor = function () {
   const remove = document.createElement("button"); remove.type = "button"; remove.className = "delete-object"; remove.textContent = "Supprimer"; remove.title = "Supprimer cet élément"; remove.onclick = removeSelectedObject;
   actions.append(move, remove); card.appendChild(actions);
   editor.appendChild(card); layout();
+};
+
+const itemRenderEditor = renderEditor;
+renderEditor = function () {
+  itemRenderEditor();
+  if (selection && ["phase", "task"].includes(selection.type)) {
+    const activeStyle = planningData.itemTypes[current()?.object?.type];
+    if (activeStyle) compactColorInputs(activeStyle, (key, value) => updateSharedStyle(current().object.type, key, value));
+  }
 };
 
 const timelineControls = document.getElementById("timelineControls");
@@ -917,10 +958,9 @@ function renderTimelineEditor() {
   const endRow = document.createElement("div"); endRow.className = "timeline-date-row"; endRow.append(end, latest);
   dates.append(startRow, endRow);
   card.append(section("Période", [intro, dates]));
-  const backgroundColor = input("Couleur de fond", "backgroundColor", color(planningData.timeline.backgroundColor), "color");
+  const backgroundColor = colorPicker("Couleur de fond", planningData.timeline.backgroundColor, value => updateTimelineBackground("backgroundColor", value));
   const backgroundOpacity = input("Opacité à l’export (0 à 1)", "backgroundOpacity", planningData.timeline.backgroundOpacity, "number");
   const backgroundOpacityField = backgroundOpacity.querySelector("input"); backgroundOpacityField.min = "0"; backgroundOpacityField.max = "1"; backgroundOpacityField.step = "0.01";
-  backgroundColor.querySelector("input").oninput = event => updateTimelineBackground("backgroundColor", event.target.value);
   backgroundOpacityField.oninput = event => updateTimelineBackground("backgroundOpacity", event.target.value);
   const backgroundNote = document.createElement("p"); backgroundNote.className = "impact-note"; backgroundNote.textContent = "La couleur reste pleinement visible dans l’éditeur. Son opacité est appliquée aux exports SVG et PNG ; 0 produit un fond transparent.";
   card.append(section("Fond du planning", [fieldGrid(backgroundColor, backgroundOpacity), backgroundNote], false));
@@ -956,9 +996,7 @@ function renderThemeEditor() {
   const preset = input("Palette de départ", "theme-preset", planningData.theme.preset, "select", [...Object.entries(THEME_PRESETS).map(([id, theme]) => [id, theme.name]), ["custom", "Personnalisé"]]);
   preset.querySelector("select").onchange = event => { if (event.target.value !== "custom") { setThemePreset(event.target.value); renderThemeEditor(); } };
   const colors = THEME_COLOR_OPTIONS.map(([key, label]) => {
-    const field = input(label, key, planningData.theme.colors[key], "color");
-    field.querySelector("input").oninput = event => updateThemeColor(key, event.target.value);
-    return field;
+    return colorPicker(label, planningData.theme.colors[key], value => updateThemeColor(key, value), false);
   });
   card.append(section("Nuancier", [note, preset, fieldGrid(...colors)], true));
   const appearanceFields = THEME_APPEARANCE_OPTIONS.map(([key, label]) => {
@@ -1017,7 +1055,7 @@ addMenu.onclick = event => {
   addPlanningObject(action.dataset.addType);
   closeAddMenu();
 };
-document.addEventListener("click", event => { if (!event.target.closest(".add-menu")) closeAddMenu(); if (!event.target.closest(".load-menu")) closeLoadMenu(); if (!event.target.closest(".palette-picker")) document.querySelectorAll(".palette-picker-list").forEach(menu => menu.hidden = true); });
+document.addEventListener("click", event => { if (!event.target.closest(".add-menu")) closeAddMenu(); if (!event.target.closest(".load-menu")) closeLoadMenu(); if (!event.target.closest(".palette-picker")) document.querySelectorAll(".palette-picker-list").forEach(menu => menu.hidden = true); if (!event.target.closest(".color-picker")) document.querySelectorAll(".color-picker-menu").forEach(menu => menu.hidden = true); });
 document.addEventListener("keydown", event => { if (event.key === "Escape") { closeAddMenu(); closeLoadMenu(); } });
 
 // The most frequent creation path: double-click an empty area of a lane.
