@@ -424,11 +424,21 @@ button:hover {
 .color-picker-button::after { content: "⌄"; margin-left: auto; color: #6d7b80; font-size: 15px; }
 .color-picker-menu { position: fixed; z-index: 31; width: 236px; max-width: calc(100vw - 24px); padding: 7px; border: 1px solid #ccd6d8; border-radius: 7px; background: #fff; box-shadow: 0 8px 18px rgba(15, 23, 42, .16); }
 .color-picker-menu[hidden] { display: none; }
-.color-picker-palette { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 4px; }
+.color-picker-palette { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; }
 .color-picker-swatch { width: 100%; aspect-ratio: 1; min-width: 0; padding: 0; border: 1px solid rgba(15, 23, 42, .22); border-radius: 4px; }
 .color-picker-swatch:hover, .color-picker-swatch:focus, .color-picker-swatch.is-selected { outline: 2px solid var(--teal-line); outline-offset: 1px; }
 .color-picker-custom { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 7px; padding-top: 6px; border-top: 1px solid #e1e8e9; color: #536168; font-size: 11px; }
 .color-picker-custom input[type="color"] { width: 31px; height: 25px; min-height: 25px; padding: 2px; cursor: pointer; }
+
+/* The theme palette is intentionally compact. Object editors still use the
+   richer colour picker above, where linking to a theme role is useful. */
+.theme-color-groups { display: grid; gap: 7px; }
+.theme-color-group { padding: 7px 8px; border: 1px solid #e1e8e9; border-radius: 7px; background: #fff; }
+.theme-color-group-title { display: block; margin-bottom: 6px; color: #536168; font-size: 10px; font-weight: 750; letter-spacing: .05em; text-transform: uppercase; }
+.theme-color-group-controls { display: flex; flex-wrap: wrap; gap: 6px 10px; }
+.theme-color-control { display: inline-flex; align-items: center; gap: 5px; color: #28383d; font-size: 11px; font-weight: 650; white-space: nowrap; }
+.theme-color-control input[type="color"] { width: 24px; height: 24px; min-height: 24px; padding: 1px; border: 1px solid #b8c5c7; border-radius: 4px; background: #fff; cursor: pointer; }
+.theme-color-control input[type="color"]:focus-visible { outline: 2px solid var(--teal-line); outline-offset: 2px; }
 
 .style-picker-actions > div {
   width: 100%;

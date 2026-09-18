@@ -47,7 +47,7 @@ Les styles réutilisables sont définis dans `planningData.itemTypes`. Un élém
 
 ## Thèmes de couleurs
 
-Le bouton **Thème** propose des palettes prêtes à l’emploi et un panneau séparant clairement le **Nuancier** (couleurs disponibles : principale, déclinaisons, accent, neutre, alerte…) de l’**Attribution au planning** (couleur employée pour les frises, le quadrillage, la ligne d’aujourd’hui et les dépendances). Le thème fait partie des données du planning : il est donc conservé par l’enregistrement local et par les exports JSON.
+Le bouton **Thème** propose des palettes prêtes à l’emploi et un panneau séparant clairement le **Nuancier** de l’**Attribution au planning** (couleur employée pour les frises, le quadrillage, la ligne d’aujourd’hui et les dépendances). Le nuancier est organisé par rôle : principale et ses déclinaisons, accent, texte principal et secondaire, gris neutres, fonds, bordure/quadrillage, puis états (alerte, attention, succès). Le thème fait partie des données du planning : il est donc conservé par l’enregistrement local et par les exports JSON.
 
 Les styles partagés peuvent référencer un rôle du thème avec une valeur telle que `"@primary"`, `"@primarySoft"` ou `"@accent"`. Ces styles suivent alors tout changement de palette. Une valeur hexadécimale, par exemple `"#e11d48"`, est volontairement une **surcharge locale** : elle est conservée au changement de thème. Dans l’éditeur de style, « Fond lié au thème » permet de lier le fond d’un style partagé à l’un de ces rôles ; le sélecteur de couleur classique permet de le délier et de personnaliser cette couleur.
 
