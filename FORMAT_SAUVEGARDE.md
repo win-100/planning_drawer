@@ -217,6 +217,7 @@ Le tableau racine `items` accepte le même format. Ces éléments n'ont pas de l
 | `yOffset` | nombre | Non | Décalage depuis le haut de sa zone ; pour un élément sans lane, cette zone commence juste sous la timeline (avec l'espacement `laneGap`). Défaut `0`. |
 | `h` | nombre | Non | Hauteur. Priorité : valeur de l'élément, puis `itemTypes[type].h`, puis `layout.defaultItemHeight`. |
 | `fill`, `fillOpacity`, `stroke`, `strokeWidth`, `strokeDasharray`, `shape`, `textColor`, `textClass`, `lineHeight` | divers | Non | Surcharges locales du style partagé. |
+| `zOrder` | nombre | Non | Priorité d’affichage dans la même zone : une valeur plus élevée apparaît au premier plan. Il est ajouté automatiquement lorsqu’on utilise les commandes de superposition. |
 | `relativeTo`, `yOffsetMode` | chaînes | Non | Positionnement vertical relatif à un autre élément de lane. |
 | `dateDependencies`, `dateDurations` | objets | Non | Dates calculées à partir d'autres objets ou de la durée. |
 
@@ -273,8 +274,8 @@ Les jalons globaux se placent dans `milestones` à la racine. Les jalons d'une l
 
 | Type de jalon | Libellé | Champs communs |
 | --- | --- | --- |
-| Global | `title` : tableau de chaînes | `id`, `date`, `color`, `yOffset`, optionnellement `sub` (tableau de sous-libellés), `shape` et `size`. |
-| Dans une lane | `label` : chaîne (les `\n` sont acceptés) | `id`, `date`, `color`, `yOffset`, optionnellement `shape` et `size`. |
+| Global | `title` : tableau de chaînes | `id`, `date`, `color`, `yOffset`, optionnellement `sub` (tableau de sous-libellés), `shape`, `size` et `zOrder`. |
+| Dans une lane | `label` : chaîne (les `\n` sont acceptés) | `id`, `date`, `color`, `yOffset`, optionnellement `shape`, `size` et `zOrder`. |
 
 `shape` peut être `star` (valeur par défaut), `circle`, `square`, `diamond`, `plus` ou `multiply`. `size` est la taille du symbole en pixels, entre 8 et 80 (18 par défaut). Activez `showVerticalLine` pour tracer une ligne verticale sur toute la hauteur du planning à la date du jalon. `lineColor` (par défaut, la couleur du jalon), `lineWidth` (1 à 12 px, 2 par défaut) et `lineStyle` (`solid`, `dashed` ou `dotted`) en définissent l’apparence.
 

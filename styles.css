@@ -381,6 +381,8 @@ button:hover {
 .editor-check { display: flex; align-items: center; gap: 6px; min-height: 31px; margin: 0 0 8px; padding: 4px 7px; border: 1px solid #dbe4e5; border-radius: 6px; background: #fff; color: #37474d; font-size: 12px; font-weight: 600; }
 .editor-check input { width: 15px; height: 15px; margin: 0; accent-color: var(--teal-line); }
 .editor-actions { display: flex; gap: 7px; margin-top: 14px; }
+.stacking-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.stacking-actions button { flex: 1 1 130px; }
 .editor-actions button:first-child { margin-right: auto; }
 .editor-actions .delete-object { border-color: #f1b8b4; background: #fff5f4; color: #b42318; }
 .editor-actions .delete-object:hover { background: #ffe8e6; }
