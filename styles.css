@@ -194,6 +194,13 @@ button:hover {
   pointer-events: none;
 }
 
+.display-ratio-controls { display: grid; grid-template-columns: minmax(0, 1fr) 62px auto 31px; align-items: center; gap: 6px; }
+.display-ratio-controls input[type="range"] { width: 100%; min-width: 0; accent-color: var(--teal); }
+.display-ratio-controls input[type="number"] { width: 100%; min-height: 31px; padding: 5px 6px; border: 1px solid #ccd6d8; border-radius: 6px; color: var(--text); font: 13px Arial, Helvetica, sans-serif; font-variant-numeric: tabular-nums; }
+.display-ratio-unit { color: #536168; font-size: 13px; }
+.rollback-ratio { display: grid; width: 31px; height: 31px; place-items: center; padding: 0; color: #536168; font-size: 19px; line-height: 1; }
+.rollback-ratio:disabled { cursor: not-allowed; opacity: .45; }
+
 .today-icon {
   display: inline-block;
   width: 2px;
@@ -461,7 +468,7 @@ button:hover {
   flex: 1 1 auto;
   width: 100%;
   min-width: 0;
-  overflow-x: auto;
+  overflow: hidden;
   border: 1px solid #e3e6e8;
   background: #fff;
 }
@@ -498,7 +505,8 @@ button:hover {
 
 #planning {
   display: block;
-  min-width: 1450px;
+  min-width: 0;
+  max-width: 100%;
   width: 100%;
   height: auto;
   /* Le SVG exporté doit aussi porter explicitement cette police. */

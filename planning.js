@@ -46,7 +46,7 @@ const currentPlanningName = document.getElementById("currentPlanningName");
 const renamePlanButton = document.getElementById("btnRenamePlan");
 const loadButton = document.getElementById("btnLoad");
 const loadMenu = document.getElementById("loadMenu");
-let planningData, savedPlans = [], activePlanId = null, selection = null, referencePicker = null, editorSide = "right", isDirty = false, importedVersion = false, x, geometry;
+let planningData, savedPlans = [], activePlanId = null, selection = null, referencePicker = null, editorSide = "right", isDirty = false, importedVersion = false, previousDisplayRatio = null, x, geometry;
 // A render-only lane for root-level items and milestones. It deliberately is
 // not persisted or exposed in the editor, but uses the same geometry rules as
 // a real lane.
@@ -810,7 +810,8 @@ function status() {
 }
 function valid(data) { return data && data.range && data.layout && (data.lanes == null || Array.isArray(data.lanes)) && (data.items == null || Array.isArray(data.items)); }
 function normalise(data) {
-  data.items ||= []; data.lanes ||= []; data.milestones ||= []; data.overlays ||= []; data.itemTypes ||= {};
+  data.items ||= []; data.lanes ||= []; data.milestones ||= []; data.overlays ||= []; data.itemTypes ||= {}; data.layout ||= {};
+  if (!Number.isFinite(Number(data.layout.width)) || Number(data.layout.width) <= 0) data.layout.width = 1500;
   const requestedPreset = data.theme?.preset;
   const preset = THEME_PRESETS[requestedPreset] || THEME_PRESETS.ocean;
   const presetId = THEME_PRESETS[requestedPreset] ? requestedPreset : data.theme ? "custom" : "ocean";
@@ -884,7 +885,7 @@ function askPlanName(message, suggested = "") {
   return name === null ? null : name.trim();
 }
 function applyPlanning(data, { activeId = null, dirty = false, imported = false } = {}) {
-  planningData = normalise(clone(data)); activePlanId = activeId;
+  planningData = normalise(clone(data)); activePlanId = activeId; previousDisplayRatio = null;
   applyThemeToApp();
   restoreTimelineSettings();
   referencePicker = null; selection = null; isDirty = dirty; importedVersion = imported;
@@ -944,6 +945,48 @@ function restoreTimelineSettings() {
   timelineLevels.forEach(level => { level.toggle.checked = settings.levels[level.key]; });
   gridTimelineLevel.value = settings.gridLevel;
   timelineLocale.value = timelineLocaleValue();
+}
+function displayRatio() { return Math.round((Number(planningData.layout.width) || 1500) / 15); }
+function updateDisplayRatio(value, previousRatio = displayRatio()) {
+  const ratio = Math.max(1, Number(value) || 100);
+  if (ratio === displayRatio()) return;
+  previousDisplayRatio = previousRatio;
+  planningData.layout.width = ratio * 15;
+  markTimelineChange();
+  render();
+}
+function displayRatioControls() {
+  const controls = document.createElement("div"); controls.className = "display-ratio-controls";
+  const slider = document.createElement("input"); slider.type = "range"; slider.min = String(Math.min(40, displayRatio())); slider.max = String(Math.max(240, displayRatio())); slider.step = "1"; slider.value = String(displayRatio()); slider.title = "Modifier le ratio d’affichage"; slider.setAttribute("aria-label", "Ratio d’affichage");
+  const number = document.createElement("input"); number.type = "number"; number.min = slider.min; number.max = slider.max; number.step = "1"; number.value = String(displayRatio()); number.title = "Saisir un ratio d’affichage précis en pourcentage"; number.setAttribute("aria-label", "Ratio d’affichage précis (pourcentage)");
+  const unit = document.createElement("span"); unit.className = "display-ratio-unit"; unit.textContent = "%"; unit.setAttribute("aria-hidden", "true");
+  const rollback = document.createElement("button"); rollback.type = "button"; rollback.className = "rollback-ratio"; rollback.textContent = "↶"; rollback.title = "Revenir à la valeur précédente"; rollback.setAttribute("aria-label", rollback.title);
+  let adjustmentOrigin = null;
+  const sync = () => {
+    const ratio = displayRatio();
+    slider.min = number.min = String(Math.min(40, ratio));
+    slider.max = number.max = String(Math.max(240, ratio));
+    slider.value = number.value = String(ratio);
+    rollback.disabled = previousDisplayRatio == null || previousDisplayRatio === ratio;
+  };
+  const apply = value => { const origin = adjustmentOrigin ?? displayRatio(); updateDisplayRatio(value, origin); sync(); };
+  slider.onpointerdown = () => { adjustmentOrigin = displayRatio(); };
+  slider.onkeydown = () => { adjustmentOrigin ??= displayRatio(); };
+  slider.oninput = event => apply(event.target.value);
+  slider.onchange = () => { adjustmentOrigin = null; };
+  slider.onkeyup = () => { adjustmentOrigin = null; };
+  number.oninput = () => { if (Number.isFinite(Number(number.value))) slider.value = number.value; };
+  number.onchange = () => { if (!number.value || !Number.isFinite(Number(number.value))) { sync(); return; } adjustmentOrigin = displayRatio(); apply(number.value); adjustmentOrigin = null; };
+  rollback.onclick = () => {
+    if (previousDisplayRatio == null) return;
+    const ratio = previousDisplayRatio;
+    previousDisplayRatio = null;
+    planningData.layout.width = ratio * 15;
+    markTimelineChange();
+    render();
+    sync();
+  };
+  sync(); controls.append(slider, number, unit, rollback); return controls;
 }
 function markTimelineChange() {
   isDirty = true;
@@ -1135,6 +1178,8 @@ function renderTimelineEditor() {
   const endRow = document.createElement("div"); endRow.className = "timeline-date-row"; endRow.append(end, latest);
   dates.append(startRow, endRow);
   card.append(section("Période", [intro, dates]));
+  const ratioNote = document.createElement("p"); ratioNote.className = "impact-note"; ratioNote.textContent = "Élargissez ou resserrez le planning tout en l’adaptant à la largeur disponible.";
+  card.append(section("Ratio d’affichage", [ratioNote, displayRatioControls()], false));
   card.appendChild(section("Ligne d’aujourd’hui", [todayControl], false));
   card.appendChild(section("Affichage", [timelineControls], false));
   const actions = document.createElement("div"); actions.className = "editor-actions"; const move = document.createElement("button"); move.textContent = editorSide === "left" ? "Déplacer à droite →" : "← Déplacer à gauche"; move.onclick = () => { editorSide = editorSide === "left" ? "right" : "left"; layout(); renderTimelineEditor(); }; actions.appendChild(move); card.appendChild(actions);

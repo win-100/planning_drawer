@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version de build : 1.000 -->
+<!-- Version de build : 1.002 -->
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
@@ -202,6 +202,13 @@ button:hover {
   opacity: 0;
   pointer-events: none;
 }
+
+.display-ratio-controls { display: grid; grid-template-columns: minmax(0, 1fr) 62px auto 31px; align-items: center; gap: 6px; }
+.display-ratio-controls input[type="range"] { width: 100%; min-width: 0; accent-color: var(--teal); }
+.display-ratio-controls input[type="number"] { width: 100%; min-height: 31px; padding: 5px 6px; border: 1px solid #ccd6d8; border-radius: 6px; color: var(--text); font: 13px Arial, Helvetica, sans-serif; font-variant-numeric: tabular-nums; }
+.display-ratio-unit { color: #536168; font-size: 13px; }
+.rollback-ratio { display: grid; width: 31px; height: 31px; place-items: center; padding: 0; color: #536168; font-size: 19px; line-height: 1; }
+.rollback-ratio:disabled { cursor: not-allowed; opacity: .45; }
 
 .today-icon {
   display: inline-block;
@@ -470,7 +477,7 @@ button:hover {
   flex: 1 1 auto;
   width: 100%;
   min-width: 0;
-  overflow-x: auto;
+  overflow: hidden;
   border: 1px solid #e3e6e8;
   background: #fff;
 }
@@ -507,7 +514,8 @@ button:hover {
 
 #planning {
   display: block;
-  min-width: 1450px;
+  min-width: 0;
+  max-width: 100%;
   width: 100%;
   height: auto;
   /* Le SVG exporté doit aussi porter explicitement cette police. */
@@ -724,7 +732,7 @@ const currentPlanningName = document.getElementById("currentPlanningName");
 const renamePlanButton = document.getElementById("btnRenamePlan");
 const loadButton = document.getElementById("btnLoad");
 const loadMenu = document.getElementById("loadMenu");
-let planningData, savedPlans = [], activePlanId = null, selection = null, referencePicker = null, editorSide = "right", isDirty = false, importedVersion = false, x, geometry;
+let planningData, savedPlans = [], activePlanId = null, selection = null, referencePicker = null, editorSide = "right", isDirty = false, importedVersion = false, previousDisplayRatio = null, x, geometry;
 // A render-only lane for root-level items and milestones. It deliberately is
 // not persisted or exposed in the editor, but uses the same geometry rules as
 // a real lane.
@@ -778,7 +786,7 @@ function finishAdd(type, object, lane) {
 function addPlanningObject(type, context = {}) {
   const start = context.date || defaultDate();
   if (type === "lane") {
-    const lane = { id: newId("lane"), key: newId("lane"), label: ["Nouvelle lane"], labelColor: "@primaryStrong", backgroundColor: "@surface", backgroundOpacity: 0.2, items: [], milestones: [] };
+    const lane = { id: newId("lane"), key: newId("lane"), label: ["Nouvelle lane"], labelColor: "@primaryStrong", backgroundColor: "@surface", backgroundOpacity: 0.2, minHeight: 80, paddingTop: 5, paddingBottom: 5, items: [], milestones: [] };
     planningData.lanes.push(lane);
     finishAdd("lane", lane, lane);
     return;
@@ -1006,7 +1014,7 @@ function itemTop(item, lane, visiting = new Set()) {
   const raw = Number(item.yOffset) || 0;
   const mode = relativeMode(item), reference = mode !== "absolute" && item.relativeTo ? itemById(item.relativeTo) : null;
   const container = lane || unlanedArea;
-  if (!reference || visiting.has(item.id)) return container._y + raw;
+  if (!reference || visiting.has(item.id)) return container._y + (lane?.paddingTop ?? 0) + raw;
   const next = new Set(visiting); next.add(item.id);
   const referenceTop = itemTop(reference.item, reference.lane, next);
   if (mode === "below") return referenceTop + itemHeight(reference.item) + raw;
@@ -1022,7 +1030,7 @@ function relativeYOffsetForTop(item, reference, top) {
 function milestoneTop(item, lane, visiting = new Set()) {
   const raw = Number(item.yOffset) || 0, mode = relativeMode(item), reference = mode !== "absolute" && item.relativeTo ? positionReferenceById(item.relativeTo) : null;
   const fallbackTimelineTop = Math.max(planningData.layout.timelineTop ?? 58, (planningData.layout.topMonths ?? 8) + visibleLevels().reduce((total, level, index) => total + level.height + (index ? 2 : 0), 0));
-  const base = lane ? lane._y - 15 : (geometry?.timelineTop ?? fallbackTimelineTop) + 22;
+  const base = lane ? lane._y + (lane.paddingTop ?? 0) - 15 : (geometry?.timelineTop ?? fallbackTimelineTop) + 22;
   if (!reference || (reference.lane || null) !== (lane || null) || visiting.has(item.id)) return base + raw;
   const next = new Set(visiting); next.add(item.id);
   const referenceTop = isMilestoneEntry(reference) ? milestoneTop(reference.item, reference.lane, next) : itemTop(reference.item, reference.lane);
@@ -1041,7 +1049,8 @@ function relativeYOffsetForMilestoneTop(item, reference, top) {
 function laneContentHeight(items, milestones, lane, milestoneTopInset = 0) {
   const milestoneLane = lane === unlanedArea ? null : lane;
   const bottoms = [0, ...items.map(item => itemTop(item, lane) - lane._y + itemHeight(item)), ...milestones.map(item => milestoneTop(item, milestoneLane) - lane._y + milestoneHeight(item))];
-  return Math.max(...bottoms) + (planningData.layout.lanePaddingBottom ?? 10);
+  if (lane === unlanedArea) return Math.max(...bottoms) + (planningData.layout.lanePaddingBottom ?? 10);
+  return Math.max(Number(lane.minHeight) || 0, Math.max(...bottoms) + (lane.paddingBottom ?? 0));
 }
 function visibleLevels() { return timelineLevels.filter(v => v.toggle.checked).map(v => ({ ...v, height: planningData.layout[`${v.key}Height`] ?? v.h })); }
 function setup() { const c = planningData.layout, levels = visibleLevels(), header = levels.reduce((n, v, i) => n + v.height + (i ? 2 : 0), 0), width = c.width ?? 1500, left = c.left ?? 86, right = c.right ?? 16, start = new Date(`${planningData.range.start}T00:00:00`), end = new Date(`${planningData.range.end}T00:00:00`); x = date => left + ((new Date(`${date}T00:00:00`) - start) / (end - start)) * (width - left - right);
@@ -1459,7 +1468,7 @@ function dateDependencyControl(object, key, label) {
   }
   return wrap;
 }
-function renderEditor() { editor.innerHTML = ""; const found = current(); if (!found?.object) return; const o = found.object, card = document.createElement("div"); card.className = "editor-card"; const top = document.createElement("div"); top.className = "editor-heading"; top.appendChild(document.createTextNode(selection.type === "lane" ? "Lane" : selection.type === "overlay" ? "Overlay" : selection.type.includes("milestone") ? "Jalon" : selection.type === "task" ? "Tâche" : "Phase")); const close = document.createElement("button"); close.textContent = "×"; close.title = "Fermer"; close.setAttribute("aria-label", "Fermer le panneau"); close.onclick = clear; top.appendChild(close); card.appendChild(top); if (selection.type === "lane") { card.append(section("Informations", [input("Libellé (une ligne par ligne)", "label", o.label.join("\n"), "textarea")]), section("Apparence", [input("Couleur du bandeau", "labelColor", color(o.labelColor), "color"), fieldGrid(input("Fond", "backgroundColor", color(o.backgroundColor), "color"), input("Opacité du fond (0 à 1)", "backgroundOpacity", o.backgroundOpacity ?? 1, "number"))], false)); } else if (selection.type === "overlay") { card.append(section("Informations", [input("Libellé", "label", o.label, "text"), dateDependencyControl(o, "start", "Début"), dateDependencyControl(o, "end", "Fin")]), section("Apparence", [fieldGrid(input("Couleur", "color", color(o.color), "color"), input("Opacité (0 à 1)", "opacity", o.opacity ?? 1, "number"))], false)); } else if (selection.type.includes("milestone")) { const key = selection.type === "global-milestone" ? "title" : "label"; card.append(section("Informations", [input("Libellé (une ligne par ligne)", key, (Array.isArray(o[key]) ? o[key] : String(o[key] || "").split("\n")).join("\n"), "textarea"), dateDependencyControl(o, "date", "Date")]), laneAssignmentSection(found, true), section("Position et apparence", [fieldGrid(input("Décalage vertical", "yOffset", o.yOffset ?? 0, "number"), input("Couleur", "color", color(o.color), "color"))], false)); } else { card.append(section("Informations", [input("Libellé", "label", o.label, "textarea"), dateDependencyControl(o, "start", "Début"), dateDependencyControl(o, "end", "Fin")]), section("Position et dimensions", [fieldGrid(input("Décalage vertical", "yOffset", o.yOffset ?? 0, "number"), input("Hauteur", "h", o.h ?? style(o).h ?? planningData.layout.defaultItemHeight ?? 30, "number"))], false), section("Style", [fieldGrid(input("Couleur de fond", "fill", color(o.fill ?? style(o).fill), "color"), input("Couleur du texte", "textColor", color(o.textColor ?? style(o).textColor), "color")), input("Forme", "shape", o.shape ?? style(o).shape ?? "rect", "select", [["chevron", "Chevron"], ["rect", "Rectangle"]]), fieldGrid(input("Contour", "outline", !!(o.stroke ?? style(o).stroke), "checkbox"), input("Pointillés", "dashed", !!(o.strokeDasharray ?? style(o).strokeDasharray), "checkbox")), input("Couleur du contour", "stroke", color(o.stroke ?? style(o).stroke), "color")], false)); } card.querySelectorAll("input,textarea,select").forEach(n => { if (!n.oninput && !n.onchange) n.oninput = () => update(n.dataset.key, n.type === "checkbox" ? n.checked : n.value); }); const stack = stackingControls(); if (stack) card.appendChild(stack); const actions = document.createElement("div"); actions.className = "editor-actions"; const move = document.createElement("button"); move.type = "button"; move.className = "move-editor"; move.textContent = "↔"; move.title = editorSide === "left" ? "Déplacer le panneau à droite" : "Déplacer le panneau à gauche"; move.setAttribute("aria-label", move.title); move.onclick = () => { editorSide = editorSide === "left" ? "right" : "left"; layout(); renderEditor(); }; const remove = document.createElement("button"); remove.type = "button"; remove.className = "delete-object"; remove.textContent = "Supprimer"; remove.title = "Supprimer cet objet"; remove.onclick = removeSelectedObject; actions.append(move, remove); card.appendChild(actions); editor.appendChild(card); layout(); }
+function renderEditor() { editor.innerHTML = ""; const found = current(); if (!found?.object) return; const o = found.object, card = document.createElement("div"); card.className = "editor-card"; const top = document.createElement("div"); top.className = "editor-heading"; top.appendChild(document.createTextNode(selection.type === "lane" ? "Lane" : selection.type === "overlay" ? "Overlay" : selection.type.includes("milestone") ? "Jalon" : selection.type === "task" ? "Tâche" : "Phase")); const close = document.createElement("button"); close.textContent = "×"; close.title = "Fermer"; close.setAttribute("aria-label", "Fermer le panneau"); close.onclick = clear; top.appendChild(close); card.appendChild(top); if (selection.type === "lane") { card.append(section("Informations", [input("Libellé (une ligne par ligne)", "label", o.label.join("\n"), "textarea")]), section("Dimensions et espacements", [input("Hauteur minimale", "minHeight", o.minHeight ?? 80, "number"), fieldGrid(input("Padding haut", "paddingTop", o.paddingTop ?? 5, "number"), input("Padding bas", "paddingBottom", o.paddingBottom ?? 5, "number"))]), section("Apparence", [input("Couleur du bandeau", "labelColor", color(o.labelColor), "color"), fieldGrid(input("Fond", "backgroundColor", color(o.backgroundColor), "color"), input("Opacité du fond (0 à 1)", "backgroundOpacity", o.backgroundOpacity ?? 1, "number"))], false)); } else if (selection.type === "overlay") { card.append(section("Informations", [input("Libellé", "label", o.label, "text"), dateDependencyControl(o, "start", "Début"), dateDependencyControl(o, "end", "Fin")]), section("Apparence", [fieldGrid(input("Couleur", "color", color(o.color), "color"), input("Opacité (0 à 1)", "opacity", o.opacity ?? 1, "number"))], false)); } else if (selection.type.includes("milestone")) { const key = selection.type === "global-milestone" ? "title" : "label"; card.append(section("Informations", [input("Libellé (une ligne par ligne)", key, (Array.isArray(o[key]) ? o[key] : String(o[key] || "").split("\n")).join("\n"), "textarea"), dateDependencyControl(o, "date", "Date")]), laneAssignmentSection(found, true), section("Position et apparence", [fieldGrid(input("Décalage vertical", "yOffset", o.yOffset ?? 0, "number"), input("Couleur", "color", color(o.color), "color"))], false)); } else { card.append(section("Informations", [input("Libellé", "label", o.label, "textarea"), dateDependencyControl(o, "start", "Début"), dateDependencyControl(o, "end", "Fin")]), section("Position et dimensions", [fieldGrid(input("Décalage vertical", "yOffset", o.yOffset ?? 0, "number"), input("Hauteur", "h", o.h ?? style(o).h ?? planningData.layout.defaultItemHeight ?? 30, "number"))], false), section("Style", [fieldGrid(input("Couleur de fond", "fill", color(o.fill ?? style(o).fill), "color"), input("Couleur du texte", "textColor", color(o.textColor ?? style(o).textColor), "color")), input("Forme", "shape", o.shape ?? style(o).shape ?? "rect", "select", [["chevron", "Chevron"], ["rect", "Rectangle"]]), fieldGrid(input("Contour", "outline", !!(o.stroke ?? style(o).stroke), "checkbox"), input("Pointillés", "dashed", !!(o.strokeDasharray ?? style(o).strokeDasharray), "checkbox")), input("Couleur du contour", "stroke", color(o.stroke ?? style(o).stroke), "color")], false)); } card.querySelectorAll("input,textarea,select").forEach(n => { if (!n.oninput && !n.onchange) n.oninput = () => update(n.dataset.key, n.type === "checkbox" ? n.checked : n.value); }); const stack = stackingControls(); if (stack) card.appendChild(stack); const actions = document.createElement("div"); actions.className = "editor-actions"; const move = document.createElement("button"); move.type = "button"; move.className = "move-editor"; move.textContent = "↔"; move.title = editorSide === "left" ? "Déplacer le panneau à droite" : "Déplacer le panneau à gauche"; move.setAttribute("aria-label", move.title); move.onclick = () => { editorSide = editorSide === "left" ? "right" : "left"; layout(); renderEditor(); }; const remove = document.createElement("button"); remove.type = "button"; remove.className = "delete-object"; remove.textContent = "Supprimer"; remove.title = "Supprimer cet objet"; remove.onclick = removeSelectedObject; actions.append(move, remove); card.appendChild(actions); editor.appendChild(card); layout(); }
 function layout() { workspace.classList.toggle("editor-left", editorSide === "left"); workspace.classList.toggle("editor-right", editorSide !== "left"); }
 function moveLane(direction) {
   const found = current();
@@ -1473,7 +1482,7 @@ function moveLane(direction) {
   render();
   renderEditor();
 }
-function update(key, value) { const found = current(); if (!found?.object) return; const o = found.object, previous = o[key]; if (["yOffset", "h", "backgroundOpacity", "opacity", "size", "lineWidth"].includes(key)) value = value === "" ? 0 : Number(value); if (key === "size") value = Math.max(8, Math.min(80, value || 8)); if (key === "lineWidth") value = Math.max(1, Math.min(12, value || 1)); if (key === "label" && selection.type === "lane") o.label = value.split("\n"); else if (key === "title") o.title = value.split("\n"); else if (key === "outline") { o.stroke = value ? (o.stroke === "none" ? "#1aa79f" : o.stroke || "#1aa79f") : "none"; o.strokeWidth = value ? (o.strokeWidth || 1.4) : 0; } else if (key === "dashed") o.strokeDasharray = value ? "5 4" : ""; else o[key] = value; if (["start", "end"].includes(key) && resolvedDate(o, "start") > resolvedDate(o, "end")) { o[key] = previous; return alert("La date de début doit être antérieure ou égale à la date de fin."); } isDirty = true; importedVersion = false; status(); render(); }
+function update(key, value) { const found = current(); if (!found?.object) return; const o = found.object, previous = o[key]; if (["yOffset", "h", "backgroundOpacity", "opacity", "size", "lineWidth", "minHeight", "paddingTop", "paddingBottom"].includes(key)) value = value === "" ? 0 : Number(value); if (["minHeight", "paddingTop", "paddingBottom"].includes(key)) value = Math.max(0, value || 0); if (key === "size") value = Math.max(8, Math.min(80, value || 8)); if (key === "lineWidth") value = Math.max(1, Math.min(12, value || 1)); if (key === "label" && selection.type === "lane") o.label = value.split("\n"); else if (key === "title") o.title = value.split("\n"); else if (key === "outline") { o.stroke = value ? (o.stroke === "none" ? "#1aa79f" : o.stroke || "#1aa79f") : "none"; o.strokeWidth = value ? (o.strokeWidth || 1.4) : 0; } else if (key === "dashed") o.strokeDasharray = value ? "5 4" : ""; else o[key] = value; if (["start", "end"].includes(key) && resolvedDate(o, "start") > resolvedDate(o, "end")) { o[key] = previous; return alert("La date de début doit être antérieure ou égale à la date de fin."); } isDirty = true; importedVersion = false; status(); render(); }
 function clear() { referencePicker = null; selection = null; editor.innerHTML = ""; render(); }
 function status() {
   const plan = savedPlans.find(candidate => candidate.id === activePlanId);
@@ -1487,7 +1496,8 @@ function status() {
 }
 function valid(data) { return data && data.range && data.layout && (data.lanes == null || Array.isArray(data.lanes)) && (data.items == null || Array.isArray(data.items)); }
 function normalise(data) {
-  data.items ||= []; data.lanes ||= []; data.milestones ||= []; data.overlays ||= []; data.itemTypes ||= {};
+  data.items ||= []; data.lanes ||= []; data.milestones ||= []; data.overlays ||= []; data.itemTypes ||= {}; data.layout ||= {};
+  if (!Number.isFinite(Number(data.layout.width)) || Number(data.layout.width) <= 0) data.layout.width = 1500;
   const requestedPreset = data.theme?.preset;
   const preset = THEME_PRESETS[requestedPreset] || THEME_PRESETS.ocean;
   const presetId = THEME_PRESETS[requestedPreset] ? requestedPreset : data.theme ? "custom" : "ocean";
@@ -1527,7 +1537,7 @@ function normalise(data) {
   };
   data.items.forEach(normaliseStacking);
   data.milestones.forEach(normaliseMilestone);
-  data.lanes.forEach(lane => { lane.items ||= []; lane.milestones ||= []; lane.items.forEach(normaliseStacking); lane.milestones.forEach(normaliseMilestone); });
+  data.lanes.forEach(lane => { lane.items ||= []; lane.milestones ||= []; lane.minHeight = Math.max(0, Number.isFinite(Number(lane.minHeight)) ? Number(lane.minHeight) : 80); lane.paddingTop = Math.max(0, Number.isFinite(Number(lane.paddingTop)) ? Number(lane.paddingTop) : 5); lane.paddingBottom = Math.max(0, Number.isFinite(Number(lane.paddingBottom)) ? Number(lane.paddingBottom) : 5); lane.items.forEach(normaliseStacking); lane.milestones.forEach(normaliseMilestone); });
   ids(data);
   return data;
 }
@@ -1561,7 +1571,7 @@ function askPlanName(message, suggested = "") {
   return name === null ? null : name.trim();
 }
 function applyPlanning(data, { activeId = null, dirty = false, imported = false } = {}) {
-  planningData = normalise(clone(data)); activePlanId = activeId;
+  planningData = normalise(clone(data)); activePlanId = activeId; previousDisplayRatio = null;
   applyThemeToApp();
   restoreTimelineSettings();
   referencePicker = null; selection = null; isDirty = dirty; importedVersion = imported;
@@ -1608,6 +1618,7 @@ function renameCurrentPlanning() {
   plan.name = name; plan.updatedAt = new Date().toISOString();
   try { writeSavedPlans(); refreshSavedPlanList(); status(); } catch (_) { alert("Le renommage n’a pas pu être enregistré dans ce navigateur."); }
 }
+function exportFilename(extension) { const plan = savedPlans.find(candidate => candidate.id === activePlanId); return `${plan?.name || "planning"}.${extension}`; }
 function download(blob, filename) { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = filename; a.click(); URL.revokeObjectURL(a.href); }
 function xml() { const out = svg.cloneNode(true); out.setAttribute("xmlns", NS); out.setAttribute("font-family", getComputedStyle(svg).fontFamily); out.querySelectorAll(".selected").forEach(n => n.classList.remove("selected")); out.querySelectorAll("[data-export-opacity]").forEach(n => { n.setAttribute("fill-opacity", n.dataset.exportOpacity); n.removeAttribute("data-export-opacity"); }); svg.querySelectorAll("text").forEach((source, i) => { const target = out.querySelectorAll("text")[i], c = getComputedStyle(source); ["fill", "font-family", "font-size", "font-weight", "font-style", "letter-spacing"].forEach(k => target.style.setProperty(k, c.getPropertyValue(k))); }); return new XMLSerializer().serializeToString(out); }
 function importData(file) { if (!file) return; const reader = new FileReader(); reader.onload = () => { try { const data = JSON.parse(reader.result); if (!valid(data)) throw 0; if (isDirty && !confirm("Les modifications non enregistrées seront perdues. Importer ce fichier ?")) return; const suggestion = file.name.replace(/\.json$/i, "") || "Planning importé"; applyPlanning(data, { dirty: true, imported: true }); const name = askPlanName("Nom du planning importé (il sera enregistré dans ce navigateur) :", suggestion); if (name === null) return; if (!name) return alert("L’import est chargé mais non enregistré. Cliquez sur Enregistrer lorsque vous aurez choisi un nom."); saveWithName(name); } catch (_) { alert("Le fichier sélectionné n’est pas un planning valide."); } }; reader.readAsText(file); }
@@ -1620,6 +1631,48 @@ function restoreTimelineSettings() {
   timelineLevels.forEach(level => { level.toggle.checked = settings.levels[level.key]; });
   gridTimelineLevel.value = settings.gridLevel;
   timelineLocale.value = timelineLocaleValue();
+}
+function displayRatio() { return Math.round((Number(planningData.layout.width) || 1500) / 15); }
+function updateDisplayRatio(value, previousRatio = displayRatio()) {
+  const ratio = Math.max(1, Number(value) || 100);
+  if (ratio === displayRatio()) return;
+  previousDisplayRatio = previousRatio;
+  planningData.layout.width = ratio * 15;
+  markTimelineChange();
+  render();
+}
+function displayRatioControls() {
+  const controls = document.createElement("div"); controls.className = "display-ratio-controls";
+  const slider = document.createElement("input"); slider.type = "range"; slider.min = String(Math.min(40, displayRatio())); slider.max = String(Math.max(240, displayRatio())); slider.step = "1"; slider.value = String(displayRatio()); slider.title = "Modifier le ratio d’affichage"; slider.setAttribute("aria-label", "Ratio d’affichage");
+  const number = document.createElement("input"); number.type = "number"; number.min = slider.min; number.max = slider.max; number.step = "1"; number.value = String(displayRatio()); number.title = "Saisir un ratio d’affichage précis en pourcentage"; number.setAttribute("aria-label", "Ratio d’affichage précis (pourcentage)");
+  const unit = document.createElement("span"); unit.className = "display-ratio-unit"; unit.textContent = "%"; unit.setAttribute("aria-hidden", "true");
+  const rollback = document.createElement("button"); rollback.type = "button"; rollback.className = "rollback-ratio"; rollback.textContent = "↶"; rollback.title = "Revenir à la valeur précédente"; rollback.setAttribute("aria-label", rollback.title);
+  let adjustmentOrigin = null;
+  const sync = () => {
+    const ratio = displayRatio();
+    slider.min = number.min = String(Math.min(40, ratio));
+    slider.max = number.max = String(Math.max(240, ratio));
+    slider.value = number.value = String(ratio);
+    rollback.disabled = previousDisplayRatio == null || previousDisplayRatio === ratio;
+  };
+  const apply = value => { const origin = adjustmentOrigin ?? displayRatio(); updateDisplayRatio(value, origin); sync(); };
+  slider.onpointerdown = () => { adjustmentOrigin = displayRatio(); };
+  slider.onkeydown = () => { adjustmentOrigin ??= displayRatio(); };
+  slider.oninput = event => apply(event.target.value);
+  slider.onchange = () => { adjustmentOrigin = null; };
+  slider.onkeyup = () => { adjustmentOrigin = null; };
+  number.oninput = () => { if (Number.isFinite(Number(number.value))) slider.value = number.value; };
+  number.onchange = () => { if (!number.value || !Number.isFinite(Number(number.value))) { sync(); return; } adjustmentOrigin = displayRatio(); apply(number.value); adjustmentOrigin = null; };
+  rollback.onclick = () => {
+    if (previousDisplayRatio == null) return;
+    const ratio = previousDisplayRatio;
+    previousDisplayRatio = null;
+    planningData.layout.width = ratio * 15;
+    markTimelineChange();
+    render();
+    sync();
+  };
+  sync(); controls.append(slider, number, unit, rollback); return controls;
 }
 function markTimelineChange() {
   isDirty = true;
@@ -1811,6 +1864,8 @@ function renderTimelineEditor() {
   const endRow = document.createElement("div"); endRow.className = "timeline-date-row"; endRow.append(end, latest);
   dates.append(startRow, endRow);
   card.append(section("Période", [intro, dates]));
+  const ratioNote = document.createElement("p"); ratioNote.className = "impact-note"; ratioNote.textContent = "Élargissez ou resserrez le planning tout en l’adaptant à la largeur disponible.";
+  card.append(section("Ratio d’affichage", [ratioNote, displayRatioControls()], false));
   card.appendChild(section("Ligne d’aujourd’hui", [todayControl], false));
   card.appendChild(section("Affichage", [timelineControls], false));
   const actions = document.createElement("div"); actions.className = "editor-actions"; const move = document.createElement("button"); move.textContent = editorSide === "left" ? "Déplacer à droite →" : "← Déplacer à gauche"; move.onclick = () => { editorSide = editorSide === "left" ? "right" : "left"; layout(); renderTimelineEditor(); }; actions.appendChild(move); card.appendChild(actions);
@@ -1901,7 +1956,7 @@ renderEditor = function () {
 const originalClear = clear;
 clear = function () { restoreTimelineControls(); originalClear(); };
 
-svg.onclick = clear; document.getElementById("btnSave").onclick = save; document.getElementById("btnNew").onclick = createNewPlanning; document.getElementById("btnDeletePlan").onclick = deleteSavedPlanning; renamePlanButton.onclick = renameCurrentPlanning; loadButton.onclick = event => { event.stopPropagation(); const opening = loadMenu.hidden; loadMenu.hidden = !opening; loadButton.setAttribute("aria-expanded", String(opening)); }; loadMenu.onclick = event => { const option = event.target.closest("[data-plan-id]"); if (!option) return; closeLoadMenu(); loadSavedPlanning(option.dataset.planId); }; document.getElementById("btnData").onclick = () => download(new Blob([JSON.stringify(planningData, null, 2)], { type: "application/json" }), "planning-data.json"); document.getElementById("btnImport").onclick = () => document.getElementById("importFile").click(); document.getElementById("importFile").onchange = e => { importData(e.target.files[0]); e.target.value = ""; }; document.getElementById("btnSvg").onclick = () => download(new Blob([xml()], { type: "image/svg+xml;charset=utf-8" }), "planning.svg"); document.getElementById("btnPng").onclick = () => { const url = URL.createObjectURL(new Blob([xml()], { type: "image/svg+xml;charset=utf-8" })), image = new Image(); image.onload = () => { const c = document.createElement("canvas"), scale = 2; c.width = geometry.W * scale; c.height = geometry.H * scale; const ctx = c.getContext("2d"); ctx.drawImage(image, 0, 0, c.width, c.height); c.toBlob(b => { URL.revokeObjectURL(url); if (!b) return alert("L’export PNG a échoué."); download(b, "planning.png"); }, "image/png"); }; image.onerror = () => { URL.revokeObjectURL(url); alert("L’export PNG a échoué."); }; image.src = url; }; todayLineToggle.onchange = () => { planningData.timeline.showTodayLine = todayLineToggle.checked; markTimelineChange(); render(); }; dateDependenciesToggle.onchange = () => { planningData.timeline.showDateDependencies = dateDependenciesToggle.checked; markTimelineChange(); render(); }; timelineLevels.forEach(level => level.toggle.onchange = () => { planningData.timeline.levels[level.key] = level.toggle.checked; gridChoices(); planningData.timeline.gridLevel = gridTimelineLevel.value; markTimelineChange(); render(); }); gridTimelineLevel.onchange = () => { planningData.timeline.gridLevel = gridTimelineLevel.value; markTimelineChange(); render(); }; timelineLocale.onchange = () => { planningData.monthLocale = timelineLocale.value; markTimelineChange(); render(); }; window.addEventListener("beforeunload", e => { if (isDirty) { e.preventDefault(); e.returnValue = ""; } });
+svg.onclick = clear; document.getElementById("btnSave").onclick = save; document.getElementById("btnNew").onclick = createNewPlanning; document.getElementById("btnDeletePlan").onclick = deleteSavedPlanning; renamePlanButton.onclick = renameCurrentPlanning; loadButton.onclick = event => { event.stopPropagation(); const opening = loadMenu.hidden; loadMenu.hidden = !opening; loadButton.setAttribute("aria-expanded", String(opening)); }; loadMenu.onclick = event => { const option = event.target.closest("[data-plan-id]"); if (!option) return; closeLoadMenu(); loadSavedPlanning(option.dataset.planId); }; document.getElementById("btnData").onclick = () => download(new Blob([JSON.stringify(planningData, null, 2)], { type: "application/json" }), exportFilename("json")); document.getElementById("btnImport").onclick = () => document.getElementById("importFile").click(); document.getElementById("importFile").onchange = e => { importData(e.target.files[0]); e.target.value = ""; }; document.getElementById("btnSvg").onclick = () => download(new Blob([xml()], { type: "image/svg+xml;charset=utf-8" }), exportFilename("svg")); document.getElementById("btnPng").onclick = () => { const url = URL.createObjectURL(new Blob([xml()], { type: "image/svg+xml;charset=utf-8" })), image = new Image(); image.onload = () => { const c = document.createElement("canvas"), scale = 2; c.width = geometry.W * scale; c.height = geometry.H * scale; const ctx = c.getContext("2d"); ctx.drawImage(image, 0, 0, c.width, c.height); c.toBlob(b => { URL.revokeObjectURL(url); if (!b) return alert("L’export PNG a échoué."); download(b, exportFilename("png")); }, "image/png"); }; image.onerror = () => { URL.revokeObjectURL(url); alert("L’export PNG a échoué."); }; image.src = url; }; todayLineToggle.onchange = () => { planningData.timeline.showTodayLine = todayLineToggle.checked; markTimelineChange(); render(); }; dateDependenciesToggle.onchange = () => { planningData.timeline.showDateDependencies = dateDependenciesToggle.checked; markTimelineChange(); render(); }; timelineLevels.forEach(level => level.toggle.onchange = () => { planningData.timeline.levels[level.key] = level.toggle.checked; gridChoices(); planningData.timeline.gridLevel = gridTimelineLevel.value; markTimelineChange(); render(); }); gridTimelineLevel.onchange = () => { planningData.timeline.gridLevel = gridTimelineLevel.value; markTimelineChange(); render(); }; timelineLocale.onchange = () => { planningData.monthLocale = timelineLocale.value; markTimelineChange(); render(); }; window.addEventListener("beforeunload", e => { if (isDirty) { e.preventDefault(); e.returnValue = ""; } });
 
 function closeAddMenu() { addMenu.hidden = true; addOptionsButton.setAttribute("aria-expanded", "false"); }
 addButton.addEventListener("click", () => addPlanningObject("item"));
@@ -1931,7 +1986,7 @@ svg.ondblclick = event => {
   const lane = planningData.lanes.find(candidate => local.y >= candidate._y && local.y <= candidate._y + candidate._h);
   if (!lane) return;
   event.preventDefault();
-  addPlanningObject("item", { lane, date: dateAtX(local.x), yOffset: local.y - lane._y });
+  addPlanningObject("item", { lane, date: dateAtX(local.x), yOffset: local.y - lane._y - (lane.paddingTop ?? 0) });
 };
 themeButton.onclick = () => { selection = { type: "theme" }; renderEditor(); };
 readSavedPlans();
