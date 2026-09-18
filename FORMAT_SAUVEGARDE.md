@@ -172,6 +172,9 @@ Toutes ces propriétés sont optionnelles ; les valeurs indiquées sont celles u
   "labelColor": "#8c9397",
   "backgroundColor": "#ffffff",
   "backgroundOpacity": 0.2,
+  "minHeight": 80,
+  "paddingTop": 5,
+  "paddingBottom": 5,
   "items": [],
   "milestones": []
 }
@@ -185,10 +188,13 @@ Toutes ces propriétés sont optionnelles ; les valeurs indiquées sont celles u
 | `labelColor` | couleur | Non | Couleur du bandeau vertical. |
 | `backgroundColor` | couleur | Non | Couleur de fond de la lane. L'ancien alias `background` est aussi lu. |
 | `backgroundOpacity` | nombre | Non | Opacité du fond, défaut `1` lorsqu'un fond est présent. |
+| `minHeight` | nombre | Non | Hauteur minimale de la lane ; défaut `80`. |
+| `paddingTop` | nombre | Non | Espace minimum entre le haut de la lane et son contenu ; défaut `5`. Un élément en position absolue `0` commence après cet espace. |
+| `paddingBottom` | nombre | Non | Espace minimum sous le contenu de la lane ; défaut `5`. |
 | `items` | tableau | Non | Éléments temporels de la lane ; défaut `[]`. |
 | `milestones` | tableau | Non | Jalons propres à cette lane ; défaut `[]`. |
 
-La hauteur d'une lane dépend automatiquement de ses éléments et jalons. Ne fournissez pas de hauteur de lane.
+La hauteur d'une lane est calculée à partir de ses éléments et jalons, sans jamais être inférieure à `minHeight`.
 
 ## Éléments de lane (`items`)
 
@@ -214,7 +220,7 @@ Le tableau racine `items` accepte le même format. Ces éléments n'ont pas de l
 | `label` | chaîne | Recommandé | Libellé ; utilisez `\n` pour un retour à la ligne. |
 | `start`, `end` | date | Recommandé* | Début et fin. Ils peuvent être calculés par dépendance (voir plus bas), mais gardez une valeur fixe de secours. |
 | `type` | chaîne | Recommandé | Nom d'un style de `itemTypes`. Si le style n'existe pas, l'élément est tout de même rendu avec les valeurs par défaut. |
-| `yOffset` | nombre | Non | Décalage depuis le haut de sa zone ; pour un élément sans lane, cette zone commence juste sous la timeline (avec l'espacement `laneGap`). Défaut `0`. |
+| `yOffset` | nombre | Non | Décalage depuis le haut de sa zone utile ; dans une lane, celle-ci commence après `paddingTop`. Pour un élément sans lane, elle commence juste sous la timeline (avec l'espacement `laneGap`). Défaut `0`. |
 | `h` | nombre | Non | Hauteur. Priorité : valeur de l'élément, puis `itemTypes[type].h`, puis `layout.defaultItemHeight`. |
 | `fill`, `fillOpacity`, `stroke`, `strokeWidth`, `strokeDasharray`, `shape`, `textColor`, `textClass`, `lineHeight` | divers | Non | Surcharges locales du style partagé. |
 | `zOrder` | nombre | Non | Priorité d’affichage dans la même zone : une valeur plus élevée apparaît au premier plan. Il est ajouté automatiquement lorsqu’on utilise les commandes de superposition. |
@@ -334,7 +340,7 @@ Pour un élément ou un jalon, `relativeTo` doit désigner l'`id` d'un `item` ou
 - `"below"` : sous l'élément de référence ;
 - `"center"` : centré verticalement sur lui ;
 - `"align"` : aligné sur son haut ;
-- `"absolute"` (ou absent) : `yOffset` est mesuré depuis le haut de la lane ; `relativeTo` est alors ignoré.
+- `"absolute"` (ou absent) : `yOffset` est mesuré depuis le haut de la zone utile de la lane, après `paddingTop` ; `relativeTo` est alors ignoré.
 
 `yOffset` reste un décalage supplémentaire dans tous les modes. Évitez les références circulaires.
 
