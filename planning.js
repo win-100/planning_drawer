@@ -396,7 +396,8 @@ function group(type, object, lane, center) {
   const positionSource = referencePicker?.kind !== "date" ? objectById(referencePicker?.itemId) : null;
   const eligiblePositionReference = (positionSource?.lane || null) === (lane || null);
   const dateCandidate = Boolean(dateSource && type !== "lane" && object.id !== dateSource.item.id);
-  const positionReference = Boolean(selectedObject?.relativeTo === object.id && editorSectionOpen("Positionnement", false));
+  const positionSectionTitle = selection?.type?.includes("milestone") ? "Positionnement" : "Position et dimensions";
+  const positionReference = Boolean(selectedObject?.relativeTo === object.id && editorSectionOpen(positionSectionTitle, false));
   const dateReference = Boolean(editorSectionOpen("Informations") && Object.values(selectedObject?.dateDependencies || {}).some(dependency => dependency?.objectId === object.id));
   const pickerReference = referencePicker?.itemId === object.id || dateDependency(dateSource?.item || {}, referencePicker?.key)?.objectId === object.id;
   const candidate = referencePicker?.kind === "date" ? dateCandidate : referencePicker && eligiblePositionReference && ["phase", "task", "global-milestone", "lane-milestone"].includes(type);
