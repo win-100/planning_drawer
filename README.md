@@ -9,6 +9,20 @@ Fichiers :
 
 Il suffit de **double-cliquer sur `index.html`**. Aucun serveur local ni Python n'est nécessaire.
 
+## Créer un fichier HTML autonome
+
+Pour distribuer l’application sous la forme d’un unique fichier, exécutez la commande suivante depuis le dossier du projet :
+
+```powershell
+node build.js
+```
+
+Cette commande crée `dist/planning.html`. Ce fichier intègre le HTML, les styles, le JavaScript et le favicon ; il peut donc être copié seul et ouvert directement dans un navigateur, sans les autres fichiers du projet ni serveur local.
+
+Le fichier est à régénérer après toute modification de `index.html`, `styles.css`, `planning.js` ou `favicon.svg`. Le dossier `dist/` est généré automatiquement et n’est pas suivi par Git.
+
+Les plannings enregistrés avec **Enregistrer** restent liés au stockage local du navigateur et à l’emplacement du fichier ouvert. Pour déplacer ou archiver des plannings, utilisez également l’export **Données** au format JSON.
+
 ## Gérer les plannings
 
 L’application s’ouvre toujours sur un **planning vide** lorsqu’aucun planning n’est chargé. Les données de démonstration ne font plus partie de l’application.
