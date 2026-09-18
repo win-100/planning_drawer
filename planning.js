@@ -271,6 +271,8 @@ function allPlanningObjects() {
   ];
 }
 function objectById(id) { return allPlanningObjects().find(entry => entry.item.id === id); }
+function positionReferenceById(id) { return itemById(id) || planningData.milestones.map(item => ({ item, lane: null })).concat(planningData.lanes.flatMap(lane => lane.milestones.map(item => ({ item, lane })))).find(entry => entry.item.id === id); }
+function isMilestoneEntry(entry) { return Boolean(entry && "date" in entry.item); }
 function dateKeys(object) { return "date" in object ? ["date"] : ["start", "end"]; }
 function dateKeyLabel(key) { return key === "start" ? "Date de début" : key === "end" ? "Date de fin" : "date"; }
 function dateDependency(object, key) { return object.dateDependencies?.[key] || null; }
@@ -319,7 +321,7 @@ function objectLabel(entry) {
   const text = object.label ?? object.title;
   return Array.isArray(text) ? text.join(" ") : text || "Sans libellé";
 }
-function createsReferenceCycle(sourceId, targetId) { let current = itemById(targetId)?.item; const seen = new Set(); while (current?.relativeTo && !seen.has(current.id)) { if (current.id === sourceId) return true; seen.add(current.id); current = itemById(current.relativeTo)?.item; } return current?.id === sourceId; }
+function createsReferenceCycle(sourceId, targetId) { let current = positionReferenceById(targetId)?.item; const seen = new Set(); while (current?.relativeTo && !seen.has(current.id)) { if (current.id === sourceId) return true; seen.add(current.id); current = positionReferenceById(current.relativeTo)?.item; } return current?.id === sourceId; }
 function itemHeight(item) { return style(item).h ?? planningData.layout.defaultItemHeight ?? 30; }
 function relativeMode(item) { return ["below", "center", "align"].includes(item.yOffsetMode) ? item.yOffsetMode : "absolute"; }
 function itemTop(item, lane, visiting = new Set()) {
@@ -339,8 +341,28 @@ function relativeYOffsetForTop(item, reference, top) {
   if (relativeMode(item) === "center") return top - referenceTop - (itemHeight(reference.item) - itemHeight(item)) / 2;
   return top - referenceTop;
 }
+function milestoneTop(item, lane, visiting = new Set()) {
+  const raw = Number(item.yOffset) || 0, mode = relativeMode(item), reference = mode !== "absolute" && item.relativeTo ? positionReferenceById(item.relativeTo) : null;
+  const fallbackTimelineTop = Math.max(planningData.layout.timelineTop ?? 58, (planningData.layout.topMonths ?? 8) + visibleLevels().reduce((total, level, index) => total + level.height + (index ? 2 : 0), 0));
+  const base = lane ? lane._y - 15 : (geometry?.timelineTop ?? fallbackTimelineTop) + 22;
+  if (!reference || (reference.lane || null) !== (lane || null) || visiting.has(item.id)) return base + raw;
+  const next = new Set(visiting); next.add(item.id);
+  const referenceTop = isMilestoneEntry(reference) ? milestoneTop(reference.item, reference.lane, next) : itemTop(reference.item, reference.lane);
+  const referenceHeight = isMilestoneEntry(reference) ? milestoneHeight(reference.item) : itemHeight(reference.item);
+  if (mode === "below") return referenceTop + referenceHeight + raw;
+  if (mode === "center") return referenceTop + (referenceHeight - milestoneHeight(item)) / 2 + raw;
+  return referenceTop + raw;
+}
+function relativeYOffsetForMilestoneTop(item, reference, top) {
+  const referenceTop = isMilestoneEntry(reference) ? milestoneTop(reference.item, reference.lane) : itemTop(reference.item, reference.lane);
+  const referenceHeight = isMilestoneEntry(reference) ? milestoneHeight(reference.item) : itemHeight(reference.item);
+  if (relativeMode(item) === "below") return top - referenceTop - referenceHeight;
+  if (relativeMode(item) === "center") return top - referenceTop - (referenceHeight - milestoneHeight(item)) / 2;
+  return top - referenceTop;
+}
 function laneContentHeight(items, milestones, lane, milestoneTopInset = 0) {
-  const bottoms = [0, ...items.map(item => itemTop(item, lane) - lane._y + itemHeight(item)), ...milestones.map(item => milestoneTopInset + (Number(item.yOffset) || 0) + milestoneHeight(item))];
+  const milestoneLane = lane === unlanedArea ? null : lane;
+  const bottoms = [0, ...items.map(item => itemTop(item, lane) - lane._y + itemHeight(item)), ...milestones.map(item => milestoneTop(item, milestoneLane) - lane._y + milestoneHeight(item))];
   return Math.max(...bottoms) + (planningData.layout.lanePaddingBottom ?? 10);
 }
 function visibleLevels() { return timelineLevels.filter(v => v.toggle.checked).map(v => ({ ...v, height: planningData.layout[`${v.key}Height`] ?? v.h })); }
@@ -371,13 +393,13 @@ function group(type, object, lane, center) {
   const selectedItem = selection && ["phase", "task"].includes(selection.type) ? itemById(selection.itemId)?.item : null;
   const selectedObject = current()?.object;
   const dateSource = referencePicker?.kind === "date" ? objectById(referencePicker.sourceId) : null;
-  const positionSource = referencePicker?.kind !== "date" ? itemById(referencePicker?.itemId) : null;
-  const eligiblePositionReference = positionSource?.lane === lane;
+  const positionSource = referencePicker?.kind !== "date" ? objectById(referencePicker?.itemId) : null;
+  const eligiblePositionReference = (positionSource?.lane || null) === (lane || null);
   const dateCandidate = Boolean(dateSource && type !== "lane" && object.id !== dateSource.item.id);
-  const positionReference = Boolean(selectedItem?.relativeTo === object.id && editorSectionOpen("Position et dimensions", false));
+  const positionReference = Boolean(selectedObject?.relativeTo === object.id && editorSectionOpen("Positionnement", false));
   const dateReference = Boolean(editorSectionOpen("Informations") && Object.values(selectedObject?.dateDependencies || {}).some(dependency => dependency?.objectId === object.id));
   const pickerReference = referencePicker?.itemId === object.id || dateDependency(dateSource?.item || {}, referencePicker?.key)?.objectId === object.id;
-  const candidate = referencePicker?.kind === "date" ? dateCandidate : referencePicker && eligiblePositionReference && ["phase", "task"].includes(type);
+  const candidate = referencePicker?.kind === "date" ? dateCandidate : referencePicker && eligiblePositionReference && ["phase", "task", "global-milestone", "lane-milestone"].includes(type);
   const g = el("g", { class: "planning-item" + (selected(type, object.id) ? " selected" : "") + (positionReference ? " position-reference" : "") + (dateReference ? " date-reference" : "") + (pickerReference ? " relative-reference" : "") + (candidate ? " reference-candidate" : "") });
   g.addEventListener("click", event => {
     event.stopPropagation();
@@ -396,17 +418,17 @@ function group(type, object, lane, center) {
       }
       referencePicker = null; render(); renderEditor(); return;
     }
-    if (referencePicker && ["phase", "task"].includes(type)) {
-      if (!eligiblePositionReference) return alert("Choisissez un élément dans la même lane.");
+    if (referencePicker && ["phase", "task", "global-milestone", "lane-milestone"].includes(type)) {
+      if (!eligiblePositionReference) return alert("Choisissez un élément ou un jalon dans la même lane.");
       if (referencePicker.itemId === object.id) return alert("Un élément ne peut pas être sa propre référence.");
       if (createsReferenceCycle(referencePicker.itemId, object.id)) return alert("Cette référence créerait une boucle de positionnement.");
-      const source = itemById(referencePicker.itemId);
+      const source = objectById(referencePicker.itemId);
       if (source) {
         // Capture the on-screen position before adding the reference, then use
         // the corresponding relative offset so choosing a reference is stable.
-        const currentTop = itemTop(source.item, source.lane);
+        const currentTop = selection?.type?.includes("milestone") ? milestoneTop(source.item, source.lane) : itemTop(source.item, source.lane);
         source.item.relativeTo = object.id;
-        source.item.yOffset = relativeYOffsetForTop(source.item, { item: object, lane }, currentTop);
+        source.item.yOffset = selection?.type?.includes("milestone") ? relativeYOffsetForMilestoneTop(source.item, { item: object, lane }, currentTop) : relativeYOffsetForTop(source.item, { item: object, lane }, currentTop);
         isDirty = true; importedVersion = false; status();
       }
       referencePicker = null; render(); renderEditor(); return;
@@ -432,7 +454,7 @@ function milestoneSymbol(shape, cx, cy, size, color) {
   return el("path", { ...attrs, d: `M ${points.join(" L ")} Z` });
 }
 function milestoneSymbolCenter(item, top, lines, sub) { const symbolTop = top + lines.length * 14 + sub.length * 12 - (sub.length ? 7 : 10); return symbolTop + milestoneSize(item) / 2; }
-function drawMilestone(item, lane) { const global = !lane, lines = milestoneLines(item, global ? "title" : "label", global ? undefined : "title"), sub = milestoneLines(item, "sub"), color = resolveColor(item.color, resolveColor("@text")), top = global ? geometry.timelineTop + 22 + (item.yOffset || 0) : lane._y + (item.yOffset || 0) - 15, cx = x(resolvedDate(item, "date")), g = group(global ? "global-milestone" : "lane-milestone", item, lane, cx); textLines(g, lines, cx, top, "milestone-label", 14, color); if (sub.length) textLines(g, sub, cx, top + lines.length * 14 + 1, "milestone-sub", 12, color); g.appendChild(milestoneSymbol(item.shape || "star", cx, milestoneSymbolCenter(item, top, lines, sub), milestoneSize(item), color)); svg.appendChild(g); }
+function drawMilestone(item, lane) { const global = !lane, lines = milestoneLines(item, global ? "title" : "label", global ? undefined : "title"), sub = milestoneLines(item, "sub"), color = resolveColor(item.color, resolveColor("@text")), top = milestoneTop(item, lane), cx = x(resolvedDate(item, "date")), g = group(global ? "global-milestone" : "lane-milestone", item, lane, cx); textLines(g, lines, cx, top, "milestone-label", 14, color); if (sub.length) textLines(g, sub, cx, top + lines.length * 14 + 1, "milestone-sub", 12, color); g.appendChild(milestoneSymbol(item.shape || "star", cx, milestoneSymbolCenter(item, top, lines, sub), milestoneSize(item), color)); svg.appendChild(g); }
 function overlayBounds(overlay) { const start = resolvedDate(overlay, "start"), end = resolvedDate(overlay, "end"), x1 = x(start); return { x1, width: x(end) - x1 }; }
 function drawOverlayHandle(overlay) { const { x1, width } = overlayBounds(overlay), g = group("overlay", overlay, null, x1 + width / 2); g.appendChild(el("rect", { x: x1, y: geometry.timelineTop, width, height: 12, fill: "transparent", "pointer-events": "all" })); svg.appendChild(g); }
 function drawOverlay(overlay) { const { x1, width } = overlayBounds(overlay), g = el("g", { class: "planning-item" + (selected("overlay", overlay.id) ? " selected" : "") }); g.appendChild(el("rect", { x: x1, y: geometry.timelineTop, width, height: geometry.timelineBottom - geometry.timelineTop, fill: resolveColor(overlay.color, resolveColor("@neutral")), opacity: overlay.opacity, class: "planning-shape", "pointer-events": "none" })); svg.appendChild(g); }
@@ -442,7 +464,7 @@ function dateAnchor(entry, key) {
   const xPos = x(clampDate(date));
   if (key === "date") {
     const global = !lane, lines = milestoneLines(item, global ? "title" : "label", global ? undefined : "title"), sub = milestoneLines(item, "sub");
-    const top = global ? geometry.timelineTop + 22 + (item.yOffset || 0) : lane._y + (item.yOffset || 0) - 15;
+    const top = milestoneTop(item, lane);
     return { x: xPos, y: milestoneSymbolCenter(item, top, lines, sub) };
   }
   if (item.start != null && item.end != null && !lane && planningData.overlays.includes(item)) return { x: xPos, y: geometry.timelineTop + 8 };
@@ -574,10 +596,16 @@ function moveSelectedToLane(laneId) {
   if (found.lane === destination) return;
   const sourceCollection = isMilestone ? (found.lane ? found.lane.milestones : planningData.milestones) : (found.lane ? found.lane.items : planningData.items);
   sourceCollection.splice(sourceCollection.indexOf(found.object), 1);
-  if (isMilestone) (destination ? destination.milestones : planningData.milestones).push(found.object);
+  if (isMilestone) {
+    (destination ? destination.milestones : planningData.milestones).push(found.object);
+    if (found.object.relativeTo && positionReferenceById(found.object.relativeTo)?.lane !== destination) {
+      delete found.object.relativeTo;
+      found.object.yOffsetMode = "absolute";
+    }
+  }
   else {
     (destination ? destination.items : planningData.items).push(found.object);
-    if (found.object.relativeTo && itemById(found.object.relativeTo)?.lane !== destination) {
+    if (found.object.relativeTo && positionReferenceById(found.object.relativeTo)?.lane !== destination) {
       delete found.object.relativeTo;
       found.object.yOffsetMode = "absolute";
     }
@@ -847,14 +875,14 @@ function updateSharedStyle(type, key, value) {
 }
 function relativePositionControls(item) {
   const wrap = document.createElement("div"); wrap.className = "relative-position-controls";
-  const mode = input("Positionnement vertical", "yOffsetMode", relativeMode(item), "select", [["absolute", "Absolu (haut de la lane)"], ["below", "Sous un élément"], ["center", "Centré sur un élément"], ["align", "Aligné en haut d’un élément"]]);
+  const mode = input("Positionnement vertical", "yOffsetMode", relativeMode(item), "select", [["absolute", "Absolu (haut de la lane)"], ["below", "Sous une référence"], ["center", "Centré sur une référence"], ["align", "Aligné en haut d’une référence"]]);
   const modeField = mode.querySelector("select");
   modeField.onchange = () => {
     item.yOffsetMode = modeField.value;
     if (modeField.value === "absolute") {
       delete item.relativeTo;
       referencePicker = null;
-    } else if (!itemById(item.relativeTo)) {
+    } else if (!positionReferenceById(item.relativeTo)) {
       // A relative mode is incomplete without a reference: immediately let the
       // user choose one on the planning instead of requiring the pencil click.
       referencePicker = { itemId: item.id };
@@ -863,11 +891,11 @@ function relativePositionControls(item) {
   };
   wrap.appendChild(mode);
   if (relativeMode(item) === "absolute") return wrap;
-  const reference = item.relativeTo ? itemById(item.relativeTo) : null;
+  const reference = item.relativeTo ? positionReferenceById(item.relativeTo) : null;
   const referenceLine = document.createElement("div"); referenceLine.className = "relative-reference-field";
   const description = document.createElement("span"); description.className = "relative-reference-label";
-  description.textContent = referencePicker?.itemId === item.id ? "Sélectionnez un élément dans la même lane…" : reference ? (Array.isArray(reference.item.label) ? reference.item.label.join(" ") : reference.item.label || "Sans libellé") : "Aucun élément sélectionné";
-  const pick = document.createElement("button"); pick.type = "button"; pick.className = "pick-reference"; pick.textContent = "✎"; pick.title = reference ? "Modifier l’élément de comparaison" : "Sélectionner un élément de comparaison"; pick.setAttribute("aria-label", pick.title);
+  description.textContent = referencePicker?.itemId === item.id ? "Sélectionnez un élément ou un jalon dans la même lane…" : reference ? objectLabel(reference) : "Aucune référence sélectionnée";
+  const pick = document.createElement("button"); pick.type = "button"; pick.className = "pick-reference"; pick.textContent = "✎"; pick.title = reference ? "Modifier la référence" : "Sélectionner une référence"; pick.setAttribute("aria-label", pick.title);
   pick.onclick = () => { referencePicker = referencePicker?.itemId === item.id ? null : { itemId: item.id }; render(); renderEditor(); };
   referenceLine.append(description, pick); wrap.appendChild(referenceLine);
   return wrap;
@@ -937,6 +965,20 @@ renderEditor = function () {
   if (selection && ["phase", "task"].includes(selection.type)) {
     const activeStyle = planningData.itemTypes[current()?.object?.type];
     if (activeStyle) compactColorInputs(activeStyle, (key, value) => updateSharedStyle(current().object.type, key, value));
+  }
+  if (selection?.type?.includes("milestone")) {
+    const found = current(), actions = editor.querySelector(".editor-actions");
+    const appearance = [...editor.querySelectorAll(".editor-section")].find(details => details.querySelector("summary")?.textContent === "Position et apparence");
+    if (appearance) {
+      appearance.querySelector("summary").textContent = "Apparence";
+      appearance.querySelector('[data-key="yOffset"]')?.closest("label")?.remove();
+    }
+    if (found?.object && actions) {
+      const offsetLabel = relativeMode(found.object) === "absolute" ? "Décalage vertical" : "Offset supplémentaire";
+      const offset = input(offsetLabel, "yOffset", found.object.yOffset ?? 0, "number");
+      offset.querySelector("input").oninput = () => update("yOffset", offset.querySelector("input").value);
+      actions.before(section("Positionnement", [relativePositionControls(found.object), offset], false));
+    }
   }
 };
 

@@ -322,9 +322,9 @@ Ici `start` est recalculé au lendemain de la fin de `item-realisation`. La vale
 
 Dans cet exemple, `end` vaut dix jours après `start`. N'utilisez pas simultanément une dépendance et une durée pour une même clé.
 
-### Position verticale relative (éléments uniquement)
+### Position verticale relative (éléments et jalons)
 
-`relativeTo` doit désigner l'`id` d'un autre `item`, dans la même lane. `yOffsetMode` accepte :
+Pour un élément ou un jalon, `relativeTo` doit désigner l'`id` d'un `item` ou d'un jalon de la même lane. `yOffsetMode` accepte :
 
 - `"below"` : sous l'élément de référence ;
 - `"center"` : centré verticalement sur lui ;
