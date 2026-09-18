@@ -344,7 +344,10 @@ function relativeYOffsetForTop(item, reference, top) {
 function milestoneTop(item, lane, visiting = new Set()) {
   const raw = Number(item.yOffset) || 0, mode = relativeMode(item), reference = mode !== "absolute" && item.relativeTo ? positionReferenceById(item.relativeTo) : null;
   const fallbackTimelineTop = Math.max(planningData.layout.timelineTop ?? 58, (planningData.layout.topMonths ?? 8) + visibleLevels().reduce((total, level, index) => total + level.height + (index ? 2 : 0), 0));
-  const base = lane ? lane._y + (lane.paddingTop ?? 0) - 15 : (geometry?.timelineTop ?? fallbackTimelineTop) + 22;
+  // During setup, geometry may still describe the previously loaded planning.
+  // Use the current timeline calculation so global milestones get their final
+  // lane height on the first render.
+  const base = lane ? lane._y + (lane.paddingTop ?? 0) - 15 : fallbackTimelineTop + 22;
   if (!reference || (reference.lane || null) !== (lane || null) || visiting.has(item.id)) return base + raw;
   const next = new Set(visiting); next.add(item.id);
   const referenceTop = isMilestoneEntry(reference) ? milestoneTop(reference.item, reference.lane, next) : itemTop(reference.item, reference.lane);
