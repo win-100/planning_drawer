@@ -136,7 +136,7 @@ Toutes ces propriétés sont optionnelles. Les valeurs par défaut affichent les
 | `gridSecondaryLevel` | chaîne | `""` | Périodicité du quadrillage vertical secondaire ; une chaîne vide le masque. |
 | `showTodayLine` | booléen | `true` | Affiche la ligne d’aujourd’hui. |
 | `compactMode` | booléen | `false` | Adapte l’affichage à la période sans modifier les espacements ni les coordonnées enregistrées. Lorsqu’une référence de positionnement est hors période, elle est temporairement remplacée par sa première référence visible ; le plus grand décalage de la chaîne est conservé. Si toute la chaîne est hors période, une ancre virtuelle en haut de lane remplace la référence. |
-| `trimEmptyLanes` | booléen | `false` | Mode intermédiaire « Réduire les lanes » : supprime seulement le vide avant et après le contenu visible d’une lane, et masque les lanes sans objet visible dans la période. Les espacements entre éléments visibles restent inchangés. Exclusif avec `compactMode` depuis l’interface. |
+| `trimEmptyLanes` | booléen | `true` | Mode « Ajuster les lanes au contenu visible » : supprime seulement le vide avant et après le contenu visible d’une lane, et masque les lanes sans objet visible dans la période. Les espacements entre éléments visibles restent inchangés. Exclusif avec `compactMode` depuis l’interface. |
 | `backgroundColor` | couleur | `"#ffffff"` | Couleur de fond affichée dans l’éditeur. |
 | `backgroundOpacity` | nombre | `0` | Opacité du fond dans les exports SVG et PNG (`0` rend le fond transparent). La couleur reste visible dans l’éditeur pour faciliter le travail. |
 

@@ -44,7 +44,7 @@ const defaultTimelineSettings = () => ({
   showTodayLine: true,
   showDateDependencies: false,
   compactMode: false,
-  trimEmptyLanes: false,
+  trimEmptyLanes: true,
   backgroundColor: "@surface",
   backgroundOpacity: 0
 });

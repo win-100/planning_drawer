@@ -7,17 +7,17 @@ Fichiers :
 
 ## Lancer le planning
 
-Il suffit de **double-cliquer sur `index.html`**. Aucun serveur local ni Python n'est nécessaire.
+Téléchargez le fichier **`planning.html`**, puis ouvrez-le dans votre navigateur (par exemple, en double-cliquant dessus). C’est tout : aucun logiciel à installer, aucun serveur à démarrer et aucun autre fichier n’est nécessaire.
 
-## Créer un fichier HTML autonome
+## Pour les développeurs
 
-Pour distribuer l’application sous la forme d’un unique fichier, exécutez la commande suivante depuis le dossier du projet :
+Le fichier autonome à distribuer est généré dans `dist/planning.html`. Pour le créer ou le mettre à jour après une modification des fichiers source, exécutez la commande suivante depuis le dossier du projet :
 
 ```powershell
 node build.js
 ```
 
-Cette commande crée `dist/planning.html`. Ce fichier intègre le HTML, les styles, le JavaScript et le favicon ; il peut donc être copié seul et ouvert directement dans un navigateur, sans les autres fichiers du projet ni serveur local.
+Le fichier `index.html` peut également être ouvert directement, mais il référence les fichiers séparés du projet et sert principalement au développement.
 
 Le fichier est à régénérer après toute modification de `index.html`, `styles.css`, `planning.js` ou `favicon.svg`. Le dossier `dist/` est généré automatiquement et n’est pas suivi par Git.
 
