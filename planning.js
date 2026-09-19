@@ -89,20 +89,21 @@ function textLines(parent, lines, cx, y, cls, lineHeight = 13, fill) {
 }
 function ids(data) { data.items ||= []; data.milestones ||= []; data.lanes ||= []; data.overlays ||= []; data.items.forEach((v, i) => v.id ||= `item-${i}`); data.milestones.forEach((v, i) => v.id ||= `global-milestone-${i}`); data.overlays.forEach((v, i) => v.id ||= `overlay-${i}`); data.lanes.forEach((lane, i) => { lane.id ||= `lane-${lane.key || i}`; lane.items ||= []; lane.milestones ||= []; lane.items.forEach((v, n) => v.id ||= `${lane.id}-item-${n}`); lane.milestones.forEach((v, n) => v.id ||= `${lane.id}-milestone-${n}`); }); }
 function newId(prefix) { return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`; }
+function rangeEndBoundary() { return addDays(planningData.range.end, 1); }
 function clampDate(value) { return value < planningData.range.start ? planningData.range.start : value > planningData.range.end ? planningData.range.end : value; }
 function defaultDate() { return clampDate(dateIso()); }
 function dateAtX(localX) {
   if (hiddenWeeklyDays()) {
     const ratio = Math.max(0, Math.min(1, (localX - geometry.left) / geometry.timelineW));
-    const target = timelineCoordinate(planningData.range.start) + ratio * Math.max(1, timelineCoordinate(planningData.range.end) - timelineCoordinate(planningData.range.start));
+    const target = timelineCoordinate(planningData.range.start) + ratio * Math.max(1, timelineCoordinate(rangeEndBoundary()) - timelineCoordinate(planningData.range.start));
     let cursor = planningData.range.start, closest = cursor;
     while (cursor <= planningData.range.end) { if (!weeklyDayOff(cursor) && timelineCoordinate(cursor) <= target) closest = cursor; cursor = dateIso(new Date(new Date(`${cursor}T12:00:00`).getTime() + 86400000)); }
     return closest;
   }
   const rangeStart = new Date(`${planningData.range.start}T12:00:00`);
-  const rangeEnd = new Date(`${planningData.range.end}T12:00:00`);
+  const rangeEnd = new Date(`${rangeEndBoundary()}T12:00:00`);
   const ratio = Math.max(0, Math.min(1, (localX - geometry.left) / geometry.timelineW));
-  return dateIso(new Date(rangeStart.getTime() + (rangeEnd - rangeStart) * ratio));
+  return clampDate(dateIso(new Date(rangeStart.getTime() + (rangeEnd - rangeStart) * ratio)));
 }
 function selectedLane() {
   const found = current();
@@ -493,7 +494,7 @@ function laneContentHeight(items, milestones, lane, milestoneTopInset = 0) {
   return Math.max(Number(lane.minHeight) || 0, Math.max(...bottoms) + (lane.paddingBottom ?? 0));
 }
 function visibleLevels() { return timelineLevels.filter(v => v.toggle.checked).map(v => ({ ...v, height: planningData.layout[`${v.key}Height`] ?? v.h })); }
-function setup() { const c = planningData.layout, levels = visibleLevels(), header = levels.reduce((n, v, i) => n + v.height + (i ? 2 : 0), 0), width = c.width ?? 1500, left = c.left ?? 86, right = c.right ?? 16, start = new Date(`${planningData.range.start}T00:00:00`), end = new Date(`${planningData.range.end}T00:00:00`); svg.style.setProperty("--display-width", `${Math.min(100, Math.max(1, Math.round(width / 15)))}%`); const startCoordinate = timelineCoordinate(planningData.range.start), endCoordinate = timelineCoordinate(planningData.range.end); x = date => left + ((timelineCoordinate(date) - startCoordinate) / Math.max(1, endCoordinate - startCoordinate)) * (width - left - right);
+function setup() { const c = planningData.layout, levels = visibleLevels(), header = levels.reduce((n, v, i) => n + v.height + (i ? 2 : 0), 0), width = c.width ?? 1500, left = c.left ?? 86, right = c.right ?? 16; svg.style.setProperty("--display-width", `${Math.min(100, Math.max(1, Math.round(width / 15)))}%`); const startCoordinate = timelineCoordinate(planningData.range.start), endCoordinate = timelineCoordinate(rangeEndBoundary()); x = date => left + ((timelineCoordinate(date) - startCoordinate) / Math.max(1, endCoordinate - startCoordinate)) * (width - left - right);
   // Unassigned items use the same vertical positioning model as lane items:
   // start just below the timeline, then apply their yOffset.
   unlanedArea._y = Math.max((c.timelineTop ?? 58), (c.topMonths ?? 8) + header) + (c.laneGap ?? 5);
@@ -529,7 +530,8 @@ function weekday(date) { return new Date(`${date}T12:00:00`).getDay(); }
 function weeklyDayOff(date) { return !planningData.workCalendar.workingDays.includes(weekday(date)); }
 function hiddenWeeklyDays() { return planningData.workCalendar.weeklyDaysOffDisplay.mode === "hide"; }
 function timelineCoordinate(date) {
-  const target = date < planningData.range.start ? planningData.range.start : date > planningData.range.end ? planningData.range.end : date;
+  const endBoundary = rangeEndBoundary();
+  const target = date < planningData.range.start ? planningData.range.start : date > endBoundary ? endBoundary : date;
   if (!hiddenWeeklyDays()) return (new Date(`${target}T12:00:00`) - new Date(`${planningData.range.start}T12:00:00`)) / 86400000;
   let count = 0, cursor = planningData.range.start;
   while (cursor < target) { if (!weeklyDayOff(cursor)) count++; cursor = dateIso(new Date(new Date(`${cursor}T12:00:00`).getTime() + 86400000)); }
@@ -539,7 +541,7 @@ function week(date) { const d = new Date(Date.UTC(date.getFullYear(), date.getMo
 function timelineLocaleValue() { return planningData.monthLocale || "fr-FR"; }
 function quarterLabel(date) { const language = new Intl.Locale(timelineLocaleValue()).language; return `${language === "fr" ? "T" : "Q"}${Math.floor(date.getMonth() / 3) + 1}`; }
 function weekLabel(date) { const language = new Intl.Locale(timelineLocaleValue()).language; return `${language === "fr" ? "S" : "W"}${week(date)}`; }
-function periods(level) { const start = new Date(`${planningData.range.start}T00:00:00`), end = new Date(`${planningData.range.end}T00:00:00`), output = []; let d, next; if (level === "year") { d = new Date(start.getFullYear(), 0, 1); next = v => new Date(v.getFullYear() + 1, 0, 1); } else if (level === "quarter") { d = new Date(start.getFullYear(), Math.floor(start.getMonth() / 3) * 3, 1); next = v => new Date(v.getFullYear(), v.getMonth() + 3, 1); } else if (level === "week") { d = new Date(start); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); next = v => new Date(v.getFullYear(), v.getMonth(), v.getDate() + 7); } else { d = new Date(start.getFullYear(), start.getMonth(), 1); next = v => new Date(v.getFullYear(), v.getMonth() + 1, 1); } const fmt = new Intl.DateTimeFormat(timelineLocaleValue(), { month: "short" }); const boundedDate = value => { const iso = dateIso(value); return iso < planningData.range.start ? planningData.range.start : iso > planningData.range.end ? planningData.range.end : iso; }; while (d <= end) { output.push([level === "year" ? String(d.getFullYear()) : level === "quarter" ? quarterLabel(d) : level === "week" ? weekLabel(d) : fmt.format(d).replace(/^./, c => c.toUpperCase()), boundedDate(d)]); d = next(d); } output.push(["", boundedDate(d)]); return output; }
+function periods(level) { const start = new Date(`${planningData.range.start}T00:00:00`), end = new Date(`${planningData.range.end}T00:00:00`), output = []; let d, next; if (level === "year") { d = new Date(start.getFullYear(), 0, 1); next = v => new Date(v.getFullYear() + 1, 0, 1); } else if (level === "quarter") { d = new Date(start.getFullYear(), Math.floor(start.getMonth() / 3) * 3, 1); next = v => new Date(v.getFullYear(), v.getMonth() + 3, 1); } else if (level === "week") { d = new Date(start); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); next = v => new Date(v.getFullYear(), v.getMonth(), v.getDate() + 7); } else { d = new Date(start.getFullYear(), start.getMonth(), 1); next = v => new Date(v.getFullYear(), v.getMonth() + 1, 1); } const fmt = new Intl.DateTimeFormat(timelineLocaleValue(), { month: "short" }); const boundedDate = value => { const iso = dateIso(value); return iso < planningData.range.start ? planningData.range.start : iso > planningData.range.end ? rangeEndBoundary() : iso; }; while (d <= end) { output.push([level === "year" ? String(d.getFullYear()) : level === "quarter" ? quarterLabel(d) : level === "week" ? weekLabel(d) : fmt.format(d).replace(/^./, c => c.toUpperCase()), boundedDate(d)]); d = next(d); } output.push(["", boundedDate(d)]); return output; }
 function selected(type, id) { return selection?.type === type && selection.itemId === id; }
 function stackingGroup(found = current()) {
   if (!found?.object || !["phase", "task", "global-milestone", "lane-milestone"].includes(selection?.type)) return [];
@@ -632,7 +634,7 @@ function group(type, object, lane, center) {
   return g;
 }
 function chevron(x1, y, w, h) { const x2 = x1 + w; return `M ${x1} ${y} L ${x2 - 11} ${y} L ${x2} ${y + h / 2} L ${x2 - 11} ${y + h} L ${x1} ${y + h} Z`; }
-function drawItem(lane, item) { const resolvedStart = resolvedDate(item, "start"), resolvedEnd = resolvedDate(item, "end"); if (resolvedEnd <= planningData.range.start || resolvedStart >= planningData.range.end) return; const s = style(item), start = resolvedStart < planningData.range.start ? planningData.range.start : resolvedStart, end = resolvedEnd > planningData.range.end ? planningData.range.end : resolvedEnd, x1 = x(start), w = Math.max(4, x(end) - x1), h = itemHeight(item), y = itemTop(item, lane), type = item.type?.startsWith("task") ? "task" : "phase", g = group(type, item, lane, x1 + w / 2), attrs = { fill: resolveColor(s.fill, resolveColor("@primarySoft")), stroke: s.stroke === "none" ? "none" : resolveColor(s.stroke), "stroke-width": s.strokeWidth ?? 0, "fill-opacity": s.fillOpacity, class: "planning-shape" }, shape = s.shape === "chevron" ? el("path", { ...attrs, d: chevron(x1, y, w, h) }) : el("rect", { ...attrs, x: x1, y, width: w, height: h }); if (s.strokeDasharray) shape.setAttribute("stroke-dasharray", s.strokeDasharray); g.appendChild(shape); const lines = (item.label || "").split("\n"); textLines(g, lines, x1 + w / 2, y + h / 2 - (lines.length - 1) * 6 + 4, s.textClass || "item-label", s.lineHeight ?? 12, s.textColor && resolveColor(s.textColor)); svg.appendChild(g); }
+function drawItem(lane, item) { const resolvedStart = resolvedDate(item, "start"), resolvedEnd = resolvedDate(item, "end"); if (resolvedEnd < planningData.range.start || resolvedStart > planningData.range.end) return; const s = style(item), start = resolvedStart < planningData.range.start ? planningData.range.start : resolvedStart, endBoundary = resolvedEnd >= planningData.range.end ? rangeEndBoundary() : addDays(resolvedEnd, 1), x1 = x(start), w = Math.max(4, x(endBoundary) - x1), h = itemHeight(item), y = itemTop(item, lane), type = item.type?.startsWith("task") ? "task" : "phase", g = group(type, item, lane, x1 + w / 2), attrs = { fill: resolveColor(s.fill, resolveColor("@primarySoft")), stroke: s.stroke === "none" ? "none" : resolveColor(s.stroke), "stroke-width": s.strokeWidth ?? 0, "fill-opacity": s.fillOpacity, class: "planning-shape" }, shape = s.shape === "chevron" ? el("path", { ...attrs, d: chevron(x1, y, w, h) }) : el("rect", { ...attrs, x: x1, y, width: w, height: h }); if (s.strokeDasharray) shape.setAttribute("stroke-dasharray", s.strokeDasharray); g.appendChild(shape); const lines = (item.label || "").split("\n"); textLines(g, lines, x1 + w / 2, y + h / 2 - (lines.length - 1) * 6 + 4, s.textClass || "item-label", s.lineHeight ?? 12, s.textColor && resolveColor(s.textColor)); svg.appendChild(g); }
 function milestoneLines(item, key, fallbackKey) { const value = item[key] ?? (fallbackKey ? item[fallbackKey] : undefined); if (value == null || value === "") return []; return Array.isArray(value) ? value : String(value).split("\n"); }
 function milestoneSize(item) { return Math.max(8, Math.min(80, Number(item.size) || 18)); }
 function milestoneHeight(item) { return Math.max(10, milestoneLines(item, "label", "title").length * 14 + milestoneLines(item, "sub").length * 12 + 2 + Math.max(0, milestoneSize(item) - 18)); }
@@ -646,14 +648,31 @@ function milestoneSymbol(shape, cx, cy, size, color) {
   return el("path", { ...attrs, d: `M ${points.join(" L ")} Z` });
 }
 function milestoneSymbolCenter(item, top, lines, sub) { const symbolTop = top + lines.length * 14 + sub.length * 12 - (sub.length ? 7 : 10); return symbolTop + milestoneSize(item) / 2; }
-function drawMilestone(item, lane) { if ((planningData.timeline.compactMode || (planningData.timeline.trimEmptyLanes && lane)) && !itemVisibleInRange(item)) return; const global = !lane, lines = milestoneLines(item, global ? "title" : "label", global ? undefined : "title"), sub = milestoneLines(item, "sub"), color = resolveColor(item.color, resolveColor("@text")), top = milestoneTop(item, lane), cx = x(resolvedDate(item, "date")), g = group(global ? "global-milestone" : "lane-milestone", item, lane, cx); textLines(g, lines, cx, top, "milestone-label", 14, color); if (sub.length) textLines(g, sub, cx, top + lines.length * 14 + 1, "milestone-sub", 12, color); g.appendChild(milestoneSymbol(item.shape || "star", cx, milestoneSymbolCenter(item, top, lines, sub), milestoneSize(item), color)); svg.appendChild(g); }
+function visibleMilestoneDate(date) {
+  if (!hiddenWeeklyDays() || !weeklyDayOff(date)) return date;
+  for (let distance = 1; ; distance++) {
+    const before = addDays(date, -distance), after = addDays(date, distance);
+    const beforeVisible = before >= planningData.range.start && !weeklyDayOff(before);
+    const afterVisible = after <= planningData.range.end && !weeklyDayOff(after);
+    if (beforeVisible) return before;
+    if (afterVisible) return after;
+    if (before < planningData.range.start && after > planningData.range.end) return null;
+  }
+}
+function milestoneX(date) {
+  const visibleDate = visibleMilestoneDate(date);
+  if (!visibleDate) return geometry.left + geometry.timelineW / 2;
+  const start = x(visibleDate), end = x(addDays(visibleDate, 1));
+  return start + (end - start) / 2;
+}
+function drawMilestone(item, lane) { if ((planningData.timeline.compactMode || (planningData.timeline.trimEmptyLanes && lane)) && !itemVisibleInRange(item)) return; const global = !lane, lines = milestoneLines(item, global ? "title" : "label", global ? undefined : "title"), sub = milestoneLines(item, "sub"), color = resolveColor(item.color, resolveColor("@text")), top = milestoneTop(item, lane), cx = milestoneX(resolvedDate(item, "date")), g = group(global ? "global-milestone" : "lane-milestone", item, lane, cx); textLines(g, lines, cx, top, "milestone-label", 14, color); if (sub.length) textLines(g, sub, cx, top + lines.length * 14 + 1, "milestone-sub", 12, color); g.appendChild(milestoneSymbol(item.shape || "star", cx, milestoneSymbolCenter(item, top, lines, sub), milestoneSize(item), color)); svg.appendChild(g); }
 function milestoneLineDasharray(style) { return style === "dashed" ? "8 5" : style === "dotted" ? "2 4" : null; }
 function drawMilestoneVerticalLine(item) {
   if (!item.showVerticalLine) return;
   const date = resolvedDate(item, "date");
   if (date < planningData.range.start || date > planningData.range.end) return;
   svg.appendChild(el("line", {
-    x1: x(date), y1: 0, x2: x(date), y2: geometry.H,
+    x1: milestoneX(date), y1: 0, x2: milestoneX(date), y2: geometry.H,
     stroke: resolveColor(item.lineColor, resolveColor(item.color, resolveColor("@text"))),
     "stroke-width": Math.max(1, Math.min(12, Number(item.lineWidth) || 2)),
     "stroke-dasharray": milestoneLineDasharray(item.lineStyle),
@@ -661,13 +680,13 @@ function drawMilestoneVerticalLine(item) {
     "pointer-events": "none"
   }));
 }
-function overlayBounds(overlay) { const start = resolvedDate(overlay, "start"), end = resolvedDate(overlay, "end"), x1 = x(start); return { x1, width: x(end) - x1 }; }
+function overlayBounds(overlay) { const start = resolvedDate(overlay, "start"), end = resolvedDate(overlay, "end"), x1 = x(start), endBoundary = end >= planningData.range.end ? rangeEndBoundary() : addDays(end, 1); return { x1, width: x(endBoundary) - x1 }; }
 function drawOverlayHandle(overlay) { const { x1, width } = overlayBounds(overlay), g = group("overlay", overlay, null, x1 + width / 2); g.appendChild(el("rect", { x: x1, y: geometry.timelineTop, width, height: 12, fill: "transparent", "pointer-events": "all" })); svg.appendChild(g); }
 function drawOverlay(overlay) { const { x1, width } = overlayBounds(overlay), g = el("g", { class: "planning-item" + (selected("overlay", overlay.id) ? " selected" : "") }); g.appendChild(el("rect", { x: x1, y: geometry.timelineTop, width, height: geometry.timelineBottom - geometry.timelineTop, fill: resolveColor(overlay.color, resolveColor("@neutral")), opacity: overlay.opacity, class: "planning-shape", "pointer-events": "none" })); svg.appendChild(g); }
 function dateAnchor(entry, key) {
   const { item, lane } = entry, date = resolvedDate(item, key);
   if (!date || (periodLayoutEnabled() && !itemVisibleInRange(item))) return null;
-  const xPos = x(clampDate(date));
+  const xPos = key === "date" ? milestoneX(clampDate(date)) : x(key === "end" ? addDays(clampDate(date), 1) : clampDate(date));
   if (key === "date") {
     const global = !lane, lines = milestoneLines(item, global ? "title" : "label", global ? undefined : "title"), sub = milestoneLines(item, "sub");
     const top = milestoneTop(item, lane);
@@ -740,7 +759,7 @@ function drawCalendarShading(predicate, display) {
   let start = null, cursor = planningData.range.start;
   const paint = end => { if (!start) return; const x1 = x(start), x2 = x(end); if (x2 > x1) svg.appendChild(el("rect", { x: x1, y: geometry.timelineTop, width: x2 - x1, height: geometry.timelineBottom - geometry.timelineTop, fill: resolveColor(display.color), "fill-opacity": display.opacity, "pointer-events": "none" })); start = null; };
   while (cursor <= planningData.range.end) { const next = dateIso(new Date(new Date(`${cursor}T12:00:00`).getTime() + 86400000)); if (predicate(cursor)) start ||= cursor; else paint(cursor); cursor = next; }
-  paint(planningData.range.end);
+  paint(rangeEndBoundary());
 }
 function drawWorkCalendarShading() {
   const calendar = planningData.workCalendar, extraDaysOff = new Set(calendar.daysOff.map(day => day.date));
