@@ -121,7 +121,7 @@ Ce fichier peut être enregistré, par exemple, sous `mon-planning.json` puis im
 
 ### `theme`
 
-`preset` peut être `ocean`, `indigo`, `forest`, `sunset` ou `custom`. `colors` est le nuancier : `primary`, `primaryStrong`, `primarySoft`, `secondary`, `secondaryStrong`, `secondarySoft`, `accent`, `accentSoft`, `text`, `textSecondary`, `textOnDark`, `neutral`, `neutralSoft`, `surface`, `surfaceAlt`, `border`, `danger`, `warning` et `success`. `appearance` attribue une de ces couleurs à une partie du rendu. Les frises utilisent les paires `timelineYear` / `timelineYearAlternate`, `timelineQuarter` / `timelineQuarterAlternate`, `timelineMonth` / `timelineMonthAlternate` et `timelineWeek` / `timelineWeekAlternate` ; attribuez la même valeur aux deux rôles d’une paire pour désactiver visuellement l’alternance. `grid.primary` et `grid.secondary` définissent chacune la `color`, la `width` (en pixels) et le `style` (`solid`, `dashed` ou `dotted`) d’un quadrillage vertical. Les styles, lanes, jalons, overlays et le fond peuvent eux aussi utiliser un rôle avec `@` : par exemple `"fill": "@secondarySoft"`. Une couleur hexadécimale reste une surcharge indépendante du thème. À l’ouverture, le planning est normalisé vers ces seuls rôles.
+`preset` peut être `ocean`, `indigo`, `forest`, `sunset` ou `custom`. `colors` est le nuancier : `primary`, `primaryStrong`, `primarySoft`, `secondary`, `secondaryStrong`, `secondarySoft`, `accent`, `accentSoft`, `text`, `textSecondary`, `textOnDark`, `neutral`, `neutralSoft`, `surface`, `surfaceAlt`, `border`, `danger`, `warning` et `success`. `appearance` attribue une de ces couleurs à une partie du rendu. Les frises utilisent les paires `timelineYear` / `timelineYearAlternate`, `timelineQuarter` / `timelineQuarterAlternate`, `timelineMonth` / `timelineMonthAlternate`, `timelineWeek` / `timelineWeekAlternate` et `timelineDay` / `timelineDayAlternate` ; attribuez la même valeur aux deux rôles d’une paire pour désactiver visuellement l’alternance. `grid.primary` et `grid.secondary` définissent chacune la `color`, la `width` (en pixels) et le `style` (`solid`, `dashed` ou `dotted`) d’un quadrillage vertical. Les styles, lanes, jalons, overlays et le fond peuvent eux aussi utiliser un rôle avec `@` : par exemple `"fill": "@secondarySoft"`. Une couleur hexadécimale reste une surcharge indépendante du thème. À l’ouverture, le planning est normalisé vers ces seuls rôles.
 
 ### `timeline`
 
@@ -133,6 +133,7 @@ Toutes ces propriétés sont optionnelles. Les valeurs par défaut affichent les
 | `levels.quarter` | booléen | `false` | Affiche les trimestres. |
 | `levels.month` | booléen | `true` | Affiche les mois. |
 | `levels.week` | booléen | `false` | Affiche les semaines. |
+| `levels.day` | booléen | `false` | Affiche les jours. |
 | `gridPrimaryLevel` | chaîne | `"month"` | Périodicité du quadrillage vertical principal. |
 | `gridSecondaryLevel` | chaîne | `""` | Périodicité du quadrillage vertical secondaire ; une chaîne vide le masque. |
 | `showTodayLine` | booléen | `true` | Affiche la ligne d’aujourd’hui. |
@@ -165,6 +166,7 @@ Toutes ces propriétés sont optionnelles ; les valeurs indiquées sont celles u
 | `quarterHeight` | `24` | Hauteur de la frise des trimestres. |
 | `monthHeight` | `40` | Hauteur de la frise des mois. |
 | `weekHeight` | `22` | Hauteur de la frise des semaines. |
+| `dayHeight` | `20` | Hauteur de la frise des jours. |
 | `timelineTop` | `58` | Position minimale de la frise. |
 | `lanesTop` | `160` | Ancien réglage conservé pour compatibilité ; la première lane se place désormais juste sous la timeline, après les éventuels éléments sans lane. |
 | `laneGap` | `5` | Espace entre deux lanes. |

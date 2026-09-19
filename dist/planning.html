@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version de build : 1.008 -->
+<!-- Version de build : 1.009 -->
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
@@ -526,6 +526,14 @@ button:hover {
 .planning-item.reference-candidate .planning-shape { stroke: #0f766e !important; stroke-width: 2 !important; }
 .relative-reference-field { display: flex; align-items: center; gap: 6px; min-height: 31px; padding: 5px 6px 5px 8px; border: 1px solid #dbe4e5; border-radius: 6px; background: #fff; }
 .relative-reference-label { min-width: 0; flex: 1; overflow: hidden; color: #38515c; font-size: 12px; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+.days-off-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; font-size: 12px; }
+.days-off-table th { padding: 0 4px 5px; color: #536168; font-size: 11px; text-align: left; }
+.days-off-table td { padding: 3px 4px; vertical-align: middle; }
+.days-off-table input { box-sizing: border-box; width: 100%; min-width: 0; padding: 6px; border: 1px solid #cbd4d6; border-radius: 5px; font: inherit; }
+.days-off-table td:first-child { width: 116px; }
+.days-off-table td:last-child { width: 30px; padding-right: 0; }
+.days-off-table .delete-object { width: 27px; min-width: 27px; height: 29px; padding: 0; }
+.days-off-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .pick-reference { display: inline-grid; width: 24px; height: 24px; flex: 0 0 24px; place-items: center; padding: 0; border-color: #b7ddd9; border-radius: 5px; background: #f2fbfa; color: #20736d; font-size: 15px; line-height: 1; }
 .pick-reference:hover { background: #dff4f2; }
 
@@ -566,6 +574,12 @@ button:hover {
   font-size: 11px;
   font-weight: 700;
   fill: #155d59;
+}
+
+.day-label {
+  font-size: 10px;
+  font-weight: 700;
+  fill: #526174;
 }
 
 .lane-label {
@@ -656,6 +670,7 @@ button:hover {
           <input id="toggleDateDependencies" type="checkbox" />
           <span aria-hidden="true">↳</span> Dépendances
         </label>
+        <button id="btnWorkingDays" type="button" title="Définir les jours travaillés et non travaillés">Jours travaillés</button>
         <button id="btnTheme" type="button" title="Choisir ou personnaliser les couleurs du thème">Thème</button>
       </div>
       <div id="timelineControls" class="timeline-controls" aria-label="Réglages de la frise">
@@ -682,6 +697,10 @@ button:hover {
           <input id="toggleWeekTimeline" type="checkbox" />
           Semaines
         </label>
+        <label class="today-toggle">
+          <input id="toggleDayTimeline" type="checkbox" />
+          Jours
+        </label>
         <label class="grid-choice" for="primaryGridTimelineLevel">
           Quadrillage vertical principal
           <select id="primaryGridTimelineLevel">
@@ -689,6 +708,7 @@ button:hover {
             <option value="quarter">Trimestres</option>
             <option value="month" selected>Mois</option>
             <option value="week">Semaines</option>
+            <option value="day">Jours</option>
           </select>
         </label>
         <label class="grid-choice" for="secondaryGridTimelineLevel">
@@ -699,6 +719,7 @@ button:hover {
             <option value="quarter">Trimestres</option>
             <option value="month">Mois</option>
             <option value="week">Semaines</option>
+            <option value="day">Jours</option>
           </select>
         </label>
       </div>
@@ -734,6 +755,7 @@ const primaryGridTimelineLevel = document.getElementById("primaryGridTimelineLev
 const secondaryGridTimelineLevel = document.getElementById("secondaryGridTimelineLevel");
 const timelineLocale = document.getElementById("timelineLocale");
 const themeButton = document.getElementById("btnTheme");
+const workingDaysButton = document.getElementById("btnWorkingDays");
 // A theme only contains semantic colour roles.  Planning objects may reference
 // one with "@primary" etc.; an ordinary #RRGGBB value is deliberately kept as
 // an element-level override.
@@ -747,17 +769,18 @@ const THEME_PRESETS = {
 // colours without prescribing where each one is used.
 const THEME_COLOR_OPTIONS = [["primary", "Principale"], ["primaryStrong", "Principale — foncée"], ["primarySoft", "Principale — claire"], ["secondary", "Secondaire"], ["secondaryStrong", "Secondaire — foncée"], ["secondarySoft", "Secondaire — claire"], ["accent", "Accent"], ["accentSoft", "Accent — clair"], ["text", "Texte principal"], ["textSecondary", "Texte secondaire"], ["textOnDark", "Texte sur fond sombre"], ["neutral", "Gris neutre"], ["neutralSoft", "Gris neutre — clair"], ["surface", "Fond principal"], ["surfaceAlt", "Fond alternatif"], ["border", "Bordure / quadrillage"], ["danger", "Alerte / échéance critique"], ["warning", "Attention"], ["success", "Succès / validation"]];
 const THEME_COLOR_GROUPS = [["Principale", ["primary", "primaryStrong", "primarySoft"]], ["Secondaire", ["secondary", "secondaryStrong", "secondarySoft"]], ["Accent", ["accent", "accentSoft"]], ["Texte", ["text", "textSecondary", "textOnDark"]], ["Neutres", ["neutral", "neutralSoft", "border"]], ["Fonds", ["surface", "surfaceAlt"]], ["États", ["danger", "warning", "success"]]];
-const THEME_APPEARANCE_OPTIONS = [["timelineYear", "Frise — années"], ["timelineYearAlternate", "Frise — années alternées"], ["timelineQuarter", "Frise — trimestres"], ["timelineQuarterAlternate", "Frise — trimestres alternés"], ["timelineMonth", "Frise — mois"], ["timelineMonthAlternate", "Frise — mois alternés"], ["timelineWeek", "Frise — semaines"], ["timelineWeekAlternate", "Frise — semaines alternées"], ["todayLine", "Ligne d’aujourd’hui"], ["dependencyIncoming", "Dépendance entrante"], ["dependencyOutgoing", "Dépendance sortante"], ["dependencyNeutral", "Dépendance neutre"]];
-const DEFAULT_THEME_APPEARANCE = { timelineYear: "@primaryStrong", timelineYearAlternate: "@primary", timelineQuarter: "@primaryStrong", timelineQuarterAlternate: "@primaryStrong", timelineMonth: "@primary", timelineMonthAlternate: "@primary", timelineWeek: "@primarySoft", timelineWeekAlternate: "@primarySoft", todayLine: "@danger", dependencyIncoming: "@accent", dependencyOutgoing: "@primaryStrong", dependencyNeutral: "@neutral" };
+const THEME_APPEARANCE_OPTIONS = [["timelineYear", "Frise — années"], ["timelineYearAlternate", "Frise — années alternées"], ["timelineQuarter", "Frise — trimestres"], ["timelineQuarterAlternate", "Frise — trimestres alternés"], ["timelineMonth", "Frise — mois"], ["timelineMonthAlternate", "Frise — mois alternés"], ["timelineWeek", "Frise — semaines"], ["timelineWeekAlternate", "Frise — semaines alternées"], ["timelineDay", "Frise — jours"], ["timelineDayAlternate", "Frise — jours alternés"], ["todayLine", "Ligne d’aujourd’hui"], ["dependencyIncoming", "Dépendance entrante"], ["dependencyOutgoing", "Dépendance sortante"], ["dependencyNeutral", "Dépendance neutre"]];
+const DEFAULT_THEME_APPEARANCE = { timelineYear: "@primaryStrong", timelineYearAlternate: "@primary", timelineQuarter: "@primaryStrong", timelineQuarterAlternate: "@primaryStrong", timelineMonth: "@primary", timelineMonthAlternate: "@primary", timelineWeek: "@primarySoft", timelineWeekAlternate: "@primarySoft", timelineDay: "@neutralSoft", timelineDayAlternate: "@neutralSoft", todayLine: "@danger", dependencyIncoming: "@accent", dependencyOutgoing: "@primaryStrong", dependencyNeutral: "@neutral" };
 const DEFAULT_THEME_GRID = { primary: { color: "@border", width: 1.2, style: "solid" }, secondary: { color: "@neutralSoft", width: 0.6, style: "dotted" } };
 const timelineLevels = [
   { key: "year", toggle: document.getElementById("toggleYearTimeline"), h: 20, fillRole: "timelineYear", altRole: "timelineYearAlternate", cls: "year-label" },
   { key: "quarter", toggle: document.getElementById("toggleQuarterTimeline"), h: 24, fillRole: "timelineQuarter", altRole: "timelineQuarterAlternate", cls: "quarter-label" },
   { key: "month", toggle: document.getElementById("toggleMonthTimeline"), h: 40, fillRole: "timelineMonth", altRole: "timelineMonthAlternate", cls: "month-label" },
-  { key: "week", toggle: document.getElementById("toggleWeekTimeline"), h: 22, fillRole: "timelineWeek", altRole: "timelineWeekAlternate", cls: "week-label" }
+  { key: "week", toggle: document.getElementById("toggleWeekTimeline"), h: 22, fillRole: "timelineWeek", altRole: "timelineWeekAlternate", cls: "week-label" },
+  { key: "day", toggle: document.getElementById("toggleDayTimeline"), h: 20, fillRole: "timelineDay", altRole: "timelineDayAlternate", cls: "day-label" }
 ];
 const defaultTimelineSettings = () => ({
-  levels: { year: true, quarter: false, month: true, week: false },
+  levels: { year: true, quarter: false, month: true, week: false, day: false },
   gridPrimaryLevel: "month",
   gridSecondaryLevel: "",
   showTodayLine: true,
@@ -766,6 +789,12 @@ const defaultTimelineSettings = () => ({
   trimEmptyLanes: true,
   backgroundColor: "@surface",
   backgroundOpacity: 0
+});
+const defaultWorkCalendar = () => ({
+  workingDays: [1, 2, 3, 4, 5],
+  daysOff: [],
+  weeklyDaysOffDisplay: { mode: "none", color: "@neutral", opacity: 0.18 },
+  daysOffDisplay: { mode: "none", color: "@accent", opacity: 0.22 }
 });
 const currentPlanningName = document.getElementById("currentPlanningName");
 const renamePlanButton = document.getElementById("btnRenamePlan");
@@ -783,8 +812,8 @@ function emptyPlanning() {
   const year = new Date().getFullYear();
   return {
     range: { start: `${year}-01-01`, end: `${year}-12-31` },
-    layout: { width: 1500, left: 86, right: 16, topMonths: 8, monthHeight: 40, timelineTop: 58, lanesTop: 160, laneGap: 5, lanePaddingBottom: 10, defaultItemHeight: 30 },
-    monthLocale: "fr-FR", items: [], milestones: [], lanes: [], overlays: [], timeline: defaultTimelineSettings(),
+    layout: { width: 1500, left: 86, right: 16, topMonths: 8, monthHeight: 40, dayHeight: 20, timelineTop: 58, lanesTop: 160, laneGap: 5, lanePaddingBottom: 10, defaultItemHeight: 30 },
+    monthLocale: "fr-FR", items: [], milestones: [], lanes: [], overlays: [], timeline: defaultTimelineSettings(), workCalendar: defaultWorkCalendar(),
     theme: { preset: "ocean", colors: clone(THEME_PRESETS.ocean.colors), appearance: clone(DEFAULT_THEME_APPEARANCE) },
     itemTypes: { task: { fill: "@surface", stroke: "@primary", textColor: "@text", strokeWidth: 1.4, shape: "chevron", h: 30, textClass: "task-label" } }
   };
@@ -801,13 +830,21 @@ function textLines(parent, lines, cx, y, cls, lineHeight = 13, fill) {
 }
 function ids(data) { data.items ||= []; data.milestones ||= []; data.lanes ||= []; data.overlays ||= []; data.items.forEach((v, i) => v.id ||= `item-${i}`); data.milestones.forEach((v, i) => v.id ||= `global-milestone-${i}`); data.overlays.forEach((v, i) => v.id ||= `overlay-${i}`); data.lanes.forEach((lane, i) => { lane.id ||= `lane-${lane.key || i}`; lane.items ||= []; lane.milestones ||= []; lane.items.forEach((v, n) => v.id ||= `${lane.id}-item-${n}`); lane.milestones.forEach((v, n) => v.id ||= `${lane.id}-milestone-${n}`); }); }
 function newId(prefix) { return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`; }
+function rangeEndBoundary() { return addDays(planningData.range.end, 1); }
 function clampDate(value) { return value < planningData.range.start ? planningData.range.start : value > planningData.range.end ? planningData.range.end : value; }
 function defaultDate() { return clampDate(dateIso()); }
 function dateAtX(localX) {
+  if (hiddenWeeklyDays()) {
+    const ratio = Math.max(0, Math.min(1, (localX - geometry.left) / geometry.timelineW));
+    const target = timelineCoordinate(planningData.range.start) + ratio * Math.max(1, timelineCoordinate(rangeEndBoundary()) - timelineCoordinate(planningData.range.start));
+    let cursor = planningData.range.start, closest = cursor;
+    while (cursor <= planningData.range.end) { if (!weeklyDayOff(cursor) && timelineCoordinate(cursor) <= target) closest = cursor; cursor = dateIso(new Date(new Date(`${cursor}T12:00:00`).getTime() + 86400000)); }
+    return closest;
+  }
   const rangeStart = new Date(`${planningData.range.start}T12:00:00`);
-  const rangeEnd = new Date(`${planningData.range.end}T12:00:00`);
+  const rangeEnd = new Date(`${rangeEndBoundary()}T12:00:00`);
   const ratio = Math.max(0, Math.min(1, (localX - geometry.left) / geometry.timelineW));
-  return dateIso(new Date(rangeStart.getTime() + (rangeEnd - rangeStart) * ratio));
+  return clampDate(dateIso(new Date(rangeStart.getTime() + (rangeEnd - rangeStart) * ratio)));
 }
 function selectedLane() {
   const found = current();
@@ -1198,7 +1235,7 @@ function laneContentHeight(items, milestones, lane, milestoneTopInset = 0) {
   return Math.max(Number(lane.minHeight) || 0, Math.max(...bottoms) + (lane.paddingBottom ?? 0));
 }
 function visibleLevels() { return timelineLevels.filter(v => v.toggle.checked).map(v => ({ ...v, height: planningData.layout[`${v.key}Height`] ?? v.h })); }
-function setup() { const c = planningData.layout, levels = visibleLevels(), header = levels.reduce((n, v, i) => n + v.height + (i ? 2 : 0), 0), width = c.width ?? 1500, left = c.left ?? 86, right = c.right ?? 16, start = new Date(`${planningData.range.start}T00:00:00`), end = new Date(`${planningData.range.end}T00:00:00`); svg.style.setProperty("--display-width", `${Math.min(100, Math.max(1, Math.round(width / 15)))}%`); x = date => left + ((new Date(`${date}T00:00:00`) - start) / (end - start)) * (width - left - right);
+function setup() { const c = planningData.layout, levels = visibleLevels(), header = levels.reduce((n, v, i) => n + v.height + (i ? 2 : 0), 0), width = c.width ?? 1500, left = c.left ?? 86, right = c.right ?? 16; svg.style.setProperty("--display-width", `${Math.min(100, Math.max(1, Math.round(width / 15)))}%`); const startCoordinate = timelineCoordinate(planningData.range.start), endCoordinate = timelineCoordinate(rangeEndBoundary()); x = date => left + ((timelineCoordinate(date) - startCoordinate) / Math.max(1, endCoordinate - startCoordinate)) * (width - left - right);
   // Unassigned items use the same vertical positioning model as lane items:
   // start just below the timeline, then apply their yOffset.
   unlanedArea._y = Math.max((c.timelineTop ?? 58), (c.topMonths ?? 8) + header) + (c.laneGap ?? 5);
@@ -1230,11 +1267,22 @@ function setup() { const c = planningData.layout, levels = visibleLevels(), head
   for (let pass = 0; pass < 4; pass++) y = arrange();
   geometry = { W: width, H: Math.ceil(y + 15), left, timelineW: width - left - right, top: c.topMonths ?? 8, header, timelineTop: Math.max(c.timelineTop ?? 58, (c.topMonths ?? 8) + header), timelineBottom: y - (c.laneGap ?? 5) }; svg.setAttribute("viewBox", `0 0 ${geometry.W} ${geometry.H}`); }
 function dateIso(date = new Date()) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`; }
+function weekday(date) { return new Date(`${date}T12:00:00`).getDay(); }
+function weeklyDayOff(date) { return !planningData.workCalendar.workingDays.includes(weekday(date)); }
+function hiddenWeeklyDays() { return planningData.workCalendar.weeklyDaysOffDisplay.mode === "hide"; }
+function timelineCoordinate(date) {
+  const endBoundary = rangeEndBoundary();
+  const target = date < planningData.range.start ? planningData.range.start : date > endBoundary ? endBoundary : date;
+  if (!hiddenWeeklyDays()) return (new Date(`${target}T12:00:00`) - new Date(`${planningData.range.start}T12:00:00`)) / 86400000;
+  let count = 0, cursor = planningData.range.start;
+  while (cursor < target) { if (!weeklyDayOff(cursor)) count++; cursor = dateIso(new Date(new Date(`${cursor}T12:00:00`).getTime() + 86400000)); }
+  return count;
+}
 function week(date) { const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())); d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7)); return Math.ceil(((d - new Date(Date.UTC(d.getUTCFullYear(), 0, 1))) / 86400000 + 1) / 7); }
 function timelineLocaleValue() { return planningData.monthLocale || "fr-FR"; }
 function quarterLabel(date) { const language = new Intl.Locale(timelineLocaleValue()).language; return `${language === "fr" ? "T" : "Q"}${Math.floor(date.getMonth() / 3) + 1}`; }
 function weekLabel(date) { const language = new Intl.Locale(timelineLocaleValue()).language; return `${language === "fr" ? "S" : "W"}${week(date)}`; }
-function periods(level) { const start = new Date(`${planningData.range.start}T00:00:00`), end = new Date(`${planningData.range.end}T00:00:00`), output = []; let d, next; if (level === "year") { d = new Date(start.getFullYear(), 0, 1); next = v => new Date(v.getFullYear() + 1, 0, 1); } else if (level === "quarter") { d = new Date(start.getFullYear(), Math.floor(start.getMonth() / 3) * 3, 1); next = v => new Date(v.getFullYear(), v.getMonth() + 3, 1); } else if (level === "week") { d = new Date(start); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); next = v => new Date(v.getFullYear(), v.getMonth(), v.getDate() + 7); } else { d = new Date(start.getFullYear(), start.getMonth(), 1); next = v => new Date(v.getFullYear(), v.getMonth() + 1, 1); } const fmt = new Intl.DateTimeFormat(timelineLocaleValue(), { month: "short" }); const boundedDate = value => { const iso = dateIso(value); return iso < planningData.range.start ? planningData.range.start : iso > planningData.range.end ? planningData.range.end : iso; }; while (d <= end) { output.push([level === "year" ? String(d.getFullYear()) : level === "quarter" ? quarterLabel(d) : level === "week" ? weekLabel(d) : fmt.format(d).replace(/^./, c => c.toUpperCase()), boundedDate(d)]); d = next(d); } output.push(["", boundedDate(d)]); return output; }
+function periods(level) { const start = new Date(`${planningData.range.start}T00:00:00`), end = new Date(`${planningData.range.end}T00:00:00`), output = []; let d, next; if (level === "year") { d = new Date(start.getFullYear(), 0, 1); next = v => new Date(v.getFullYear() + 1, 0, 1); } else if (level === "quarter") { d = new Date(start.getFullYear(), Math.floor(start.getMonth() / 3) * 3, 1); next = v => new Date(v.getFullYear(), v.getMonth() + 3, 1); } else if (level === "week") { d = new Date(start); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); next = v => new Date(v.getFullYear(), v.getMonth(), v.getDate() + 7); } else if (level === "day") { d = new Date(start); next = v => new Date(v.getFullYear(), v.getMonth(), v.getDate() + 1); } else { d = new Date(start.getFullYear(), start.getMonth(), 1); next = v => new Date(v.getFullYear(), v.getMonth() + 1, 1); } const fmt = new Intl.DateTimeFormat(timelineLocaleValue(), { month: "short" }); const boundedDate = value => { const iso = dateIso(value); return iso < planningData.range.start ? planningData.range.start : iso > planningData.range.end ? rangeEndBoundary() : iso; }; while (d <= end) { output.push([level === "year" ? String(d.getFullYear()) : level === "quarter" ? quarterLabel(d) : level === "week" ? weekLabel(d) : level === "day" ? String(d.getDate()) : fmt.format(d).replace(/^./, c => c.toUpperCase()), boundedDate(d)]); d = next(d); } output.push(["", boundedDate(d)]); return output; }
 function selected(type, id) { return selection?.type === type && selection.itemId === id; }
 function stackingGroup(found = current()) {
   if (!found?.object || !["phase", "task", "global-milestone", "lane-milestone"].includes(selection?.type)) return [];
@@ -1327,7 +1375,7 @@ function group(type, object, lane, center) {
   return g;
 }
 function chevron(x1, y, w, h) { const x2 = x1 + w; return `M ${x1} ${y} L ${x2 - 11} ${y} L ${x2} ${y + h / 2} L ${x2 - 11} ${y + h} L ${x1} ${y + h} Z`; }
-function drawItem(lane, item) { const resolvedStart = resolvedDate(item, "start"), resolvedEnd = resolvedDate(item, "end"); if (resolvedEnd <= planningData.range.start || resolvedStart >= planningData.range.end) return; const s = style(item), start = resolvedStart < planningData.range.start ? planningData.range.start : resolvedStart, end = resolvedEnd > planningData.range.end ? planningData.range.end : resolvedEnd, x1 = x(start), w = Math.max(4, x(end) - x1), h = itemHeight(item), y = itemTop(item, lane), type = item.type?.startsWith("task") ? "task" : "phase", g = group(type, item, lane, x1 + w / 2), attrs = { fill: resolveColor(s.fill, resolveColor("@primarySoft")), stroke: s.stroke === "none" ? "none" : resolveColor(s.stroke), "stroke-width": s.strokeWidth ?? 0, "fill-opacity": s.fillOpacity, class: "planning-shape" }, shape = s.shape === "chevron" ? el("path", { ...attrs, d: chevron(x1, y, w, h) }) : el("rect", { ...attrs, x: x1, y, width: w, height: h }); if (s.strokeDasharray) shape.setAttribute("stroke-dasharray", s.strokeDasharray); g.appendChild(shape); const lines = (item.label || "").split("\n"); textLines(g, lines, x1 + w / 2, y + h / 2 - (lines.length - 1) * 6 + 4, s.textClass || "item-label", s.lineHeight ?? 12, s.textColor && resolveColor(s.textColor)); svg.appendChild(g); }
+function drawItem(lane, item) { const resolvedStart = resolvedDate(item, "start"), resolvedEnd = resolvedDate(item, "end"); if (resolvedEnd < planningData.range.start || resolvedStart > planningData.range.end) return; const s = style(item), start = resolvedStart < planningData.range.start ? planningData.range.start : resolvedStart, endBoundary = resolvedEnd >= planningData.range.end ? rangeEndBoundary() : addDays(resolvedEnd, 1), x1 = x(start), w = Math.max(4, x(endBoundary) - x1), h = itemHeight(item), y = itemTop(item, lane), type = item.type?.startsWith("task") ? "task" : "phase", g = group(type, item, lane, x1 + w / 2), attrs = { fill: resolveColor(s.fill, resolveColor("@primarySoft")), stroke: s.stroke === "none" ? "none" : resolveColor(s.stroke), "stroke-width": s.strokeWidth ?? 0, "fill-opacity": s.fillOpacity, class: "planning-shape" }, shape = s.shape === "chevron" ? el("path", { ...attrs, d: chevron(x1, y, w, h) }) : el("rect", { ...attrs, x: x1, y, width: w, height: h }); if (s.strokeDasharray) shape.setAttribute("stroke-dasharray", s.strokeDasharray); g.appendChild(shape); const lines = (item.label || "").split("\n"); textLines(g, lines, x1 + w / 2, y + h / 2 - (lines.length - 1) * 6 + 4, s.textClass || "item-label", s.lineHeight ?? 12, s.textColor && resolveColor(s.textColor)); svg.appendChild(g); }
 function milestoneLines(item, key, fallbackKey) { const value = item[key] ?? (fallbackKey ? item[fallbackKey] : undefined); if (value == null || value === "") return []; return Array.isArray(value) ? value : String(value).split("\n"); }
 function milestoneSize(item) { return Math.max(8, Math.min(80, Number(item.size) || 18)); }
 function milestoneHeight(item) { return Math.max(10, milestoneLines(item, "label", "title").length * 14 + milestoneLines(item, "sub").length * 12 + 2 + Math.max(0, milestoneSize(item) - 18)); }
@@ -1341,14 +1389,31 @@ function milestoneSymbol(shape, cx, cy, size, color) {
   return el("path", { ...attrs, d: `M ${points.join(" L ")} Z` });
 }
 function milestoneSymbolCenter(item, top, lines, sub) { const symbolTop = top + lines.length * 14 + sub.length * 12 - (sub.length ? 7 : 10); return symbolTop + milestoneSize(item) / 2; }
-function drawMilestone(item, lane) { if ((planningData.timeline.compactMode || (planningData.timeline.trimEmptyLanes && lane)) && !itemVisibleInRange(item)) return; const global = !lane, lines = milestoneLines(item, global ? "title" : "label", global ? undefined : "title"), sub = milestoneLines(item, "sub"), color = resolveColor(item.color, resolveColor("@text")), top = milestoneTop(item, lane), cx = x(resolvedDate(item, "date")), g = group(global ? "global-milestone" : "lane-milestone", item, lane, cx); textLines(g, lines, cx, top, "milestone-label", 14, color); if (sub.length) textLines(g, sub, cx, top + lines.length * 14 + 1, "milestone-sub", 12, color); g.appendChild(milestoneSymbol(item.shape || "star", cx, milestoneSymbolCenter(item, top, lines, sub), milestoneSize(item), color)); svg.appendChild(g); }
+function visibleMilestoneDate(date) {
+  if (!hiddenWeeklyDays() || !weeklyDayOff(date)) return date;
+  for (let distance = 1; ; distance++) {
+    const before = addDays(date, -distance), after = addDays(date, distance);
+    const beforeVisible = before >= planningData.range.start && !weeklyDayOff(before);
+    const afterVisible = after <= planningData.range.end && !weeklyDayOff(after);
+    if (beforeVisible) return before;
+    if (afterVisible) return after;
+    if (before < planningData.range.start && after > planningData.range.end) return null;
+  }
+}
+function milestoneX(date) {
+  const visibleDate = visibleMilestoneDate(date);
+  if (!visibleDate) return geometry.left + geometry.timelineW / 2;
+  const start = x(visibleDate), end = x(addDays(visibleDate, 1));
+  return start + (end - start) / 2;
+}
+function drawMilestone(item, lane) { if ((planningData.timeline.compactMode || (planningData.timeline.trimEmptyLanes && lane)) && !itemVisibleInRange(item)) return; const global = !lane, lines = milestoneLines(item, global ? "title" : "label", global ? undefined : "title"), sub = milestoneLines(item, "sub"), color = resolveColor(item.color, resolveColor("@text")), top = milestoneTop(item, lane), cx = milestoneX(resolvedDate(item, "date")), g = group(global ? "global-milestone" : "lane-milestone", item, lane, cx); textLines(g, lines, cx, top, "milestone-label", 14, color); if (sub.length) textLines(g, sub, cx, top + lines.length * 14 + 1, "milestone-sub", 12, color); g.appendChild(milestoneSymbol(item.shape || "star", cx, milestoneSymbolCenter(item, top, lines, sub), milestoneSize(item), color)); svg.appendChild(g); }
 function milestoneLineDasharray(style) { return style === "dashed" ? "8 5" : style === "dotted" ? "2 4" : null; }
 function drawMilestoneVerticalLine(item) {
   if (!item.showVerticalLine) return;
   const date = resolvedDate(item, "date");
   if (date < planningData.range.start || date > planningData.range.end) return;
   svg.appendChild(el("line", {
-    x1: x(date), y1: 0, x2: x(date), y2: geometry.H,
+    x1: milestoneX(date), y1: 0, x2: milestoneX(date), y2: geometry.H,
     stroke: resolveColor(item.lineColor, resolveColor(item.color, resolveColor("@text"))),
     "stroke-width": Math.max(1, Math.min(12, Number(item.lineWidth) || 2)),
     "stroke-dasharray": milestoneLineDasharray(item.lineStyle),
@@ -1356,13 +1421,13 @@ function drawMilestoneVerticalLine(item) {
     "pointer-events": "none"
   }));
 }
-function overlayBounds(overlay) { const start = resolvedDate(overlay, "start"), end = resolvedDate(overlay, "end"), x1 = x(start); return { x1, width: x(end) - x1 }; }
+function overlayBounds(overlay) { const start = resolvedDate(overlay, "start"), end = resolvedDate(overlay, "end"), x1 = x(start), endBoundary = end >= planningData.range.end ? rangeEndBoundary() : addDays(end, 1); return { x1, width: x(endBoundary) - x1 }; }
 function drawOverlayHandle(overlay) { const { x1, width } = overlayBounds(overlay), g = group("overlay", overlay, null, x1 + width / 2); g.appendChild(el("rect", { x: x1, y: geometry.timelineTop, width, height: 12, fill: "transparent", "pointer-events": "all" })); svg.appendChild(g); }
 function drawOverlay(overlay) { const { x1, width } = overlayBounds(overlay), g = el("g", { class: "planning-item" + (selected("overlay", overlay.id) ? " selected" : "") }); g.appendChild(el("rect", { x: x1, y: geometry.timelineTop, width, height: geometry.timelineBottom - geometry.timelineTop, fill: resolveColor(overlay.color, resolveColor("@neutral")), opacity: overlay.opacity, class: "planning-shape", "pointer-events": "none" })); svg.appendChild(g); }
 function dateAnchor(entry, key) {
   const { item, lane } = entry, date = resolvedDate(item, key);
   if (!date || (periodLayoutEnabled() && !itemVisibleInRange(item))) return null;
-  const xPos = x(clampDate(date));
+  const xPos = key === "date" ? milestoneX(clampDate(date)) : x(key === "end" ? addDays(clampDate(date), 1) : clampDate(date));
   if (key === "date") {
     const global = !lane, lines = milestoneLines(item, global ? "title" : "label", global ? undefined : "title"), sub = milestoneLines(item, "sub");
     const top = milestoneTop(item, lane);
@@ -1430,7 +1495,21 @@ function renderStackingGroup(items, milestones, lane = null) {
 }
 function gridDasharray(style) { return style === "dashed" ? "8 5" : style === "dotted" ? "2 4" : null; }
 function drawTimelineGrid(level, grid) { if (!level) return; periods(level).slice(0, -1).forEach(v => { const date = v[1] < planningData.range.start ? planningData.range.start : v[1]; svg.appendChild(el("line", { x1: x(date), y1: geometry.timelineTop, x2: x(date), y2: geometry.timelineBottom, stroke: resolveColor(grid.color), "stroke-width": grid.width, "stroke-dasharray": gridDasharray(grid.style), "stroke-linecap": grid.style === "dotted" ? "round" : null, "pointer-events": "none" })); }); }
-function render() { setup(); svg.innerHTML = ""; const timeline = planningData.timeline, exportOpacity = Math.max(0, Math.min(1, Number(timeline.backgroundOpacity) || 0)); svg.appendChild(el("rect", { x: 0, y: 0, width: geometry.W, height: geometry.H, fill: resolveColor(timeline.backgroundColor, resolveColor("@surface")), "fill-opacity": 1, "data-export-opacity": exportOpacity, class: "planning-background", "pointer-events": "none" })); let y = geometry.top; visibleLevels().forEach((level, n) => { const p = periods(level.key); p.slice(0, -1).forEach((v, i) => { const x1 = x(v[1]), x2 = x(p[i + 1][1]); svg.append(el("rect", { x: x1, y, width: x2 - x1, height: level.height, fill: resolveColor(themeAppearance(level.altRole && i % 2 ? level.altRole : level.fillRole)), stroke: "#fff" }), el("text", { x: (x1 + x2) / 2, y: y + level.height / 2, "dominant-baseline": "middle", "text-anchor": "middle", class: level.cls }, v[0])); }); y += level.height + (n < visibleLevels().length - 1 ? 2 : 0); }); drawTimelineGrid(secondaryGridTimelineLevel.disabled ? "" : secondaryGridTimelineLevel.value, planningData.theme.grid.secondary); drawTimelineGrid(primaryGridTimelineLevel.disabled ? "" : primaryGridTimelineLevel.value, planningData.theme.grid.primary); planningData.overlays.forEach(drawOverlayHandle); renderStackingGroup(planningData.milestones, planningData.items); planningData.lanes.forEach(lane => { if (lane._hiddenByCompact) return; const bg = lane.backgroundColor ?? lane.background; if (bg && (lane.backgroundOpacity ?? 1) > 0) svg.appendChild(el("rect", { x: geometry.left, y: lane._y, width: geometry.timelineW, height: lane._h, fill: resolveColor(bg), "fill-opacity": lane.backgroundOpacity ?? 1, "pointer-events": "none" })); if (lane.key !== "change") { const g = group("lane", lane, null, 43); g.appendChild(el("rect", { x: 14, y: lane._y, width: 58, height: lane._h, fill: resolveColor(lane.labelColor, resolveColor("@primaryStrong")), class: "planning-shape" })); const label = el("g", { transform: `translate(44 ${lane._y + lane._h / 2}) rotate(-90)` }); textLines(label, lane.label, 0, -4, "lane-label", 18); g.appendChild(label); svg.appendChild(g); } renderStackingGroup(lane.items, lane.milestones, lane); }); planningData.overlays.forEach(drawOverlay); planningData.milestones.forEach(drawMilestoneVerticalLine); planningData.lanes.filter(lane => !lane._hiddenByCompact).forEach(lane => lane.milestones.forEach(drawMilestoneVerticalLine)); const showSelectedDateDependencies = Boolean(selection && ["phase", "task", "global-milestone", "lane-milestone"].includes(selection.type) && editorSectionOpen("Informations")); if (dateDependenciesToggle.checked || showSelectedDateDependencies) drawDateDependencies(!dateDependenciesToggle.checked); const today = dateIso(); if (todayLineToggle.checked && today >= planningData.range.start && today <= planningData.range.end) svg.appendChild(el("line", { x1: x(today), y1: 0, x2: x(today), y2: geometry.H, stroke: resolveColor(themeAppearance("todayLine")), "stroke-width": 2, "pointer-events": "none" })); }
+function drawCalendarShading(predicate, display) {
+  if (display.mode !== "shade") return;
+  let start = null, cursor = planningData.range.start;
+  const paint = end => { if (!start) return; const x1 = x(start), x2 = x(end); if (x2 > x1) svg.appendChild(el("rect", { x: x1, y: geometry.timelineTop, width: x2 - x1, height: geometry.timelineBottom - geometry.timelineTop, fill: resolveColor(display.color), "fill-opacity": display.opacity, "pointer-events": "none" })); start = null; };
+  while (cursor <= planningData.range.end) { const next = dateIso(new Date(new Date(`${cursor}T12:00:00`).getTime() + 86400000)); if (predicate(cursor)) start ||= cursor; else paint(cursor); cursor = next; }
+  paint(rangeEndBoundary());
+}
+function drawWorkCalendarShading() {
+  const calendar = planningData.workCalendar, extraDaysOff = new Set(calendar.daysOff.map(day => day.date));
+  drawCalendarShading(weeklyDayOff, calendar.weeklyDaysOffDisplay);
+  // Le statut hebdomadaire prévaut : un jour férié qui tombe un week-end ne
+  // reçoit pas un second calque ni la couleur des jours supplémentaires.
+  drawCalendarShading(date => extraDaysOff.has(date) && !weeklyDayOff(date), calendar.daysOffDisplay);
+}
+function render() { setup(); svg.innerHTML = ""; const timeline = planningData.timeline, exportOpacity = Math.max(0, Math.min(1, Number(timeline.backgroundOpacity) || 0)); svg.appendChild(el("rect", { x: 0, y: 0, width: geometry.W, height: geometry.H, fill: resolveColor(timeline.backgroundColor, resolveColor("@surface")), "fill-opacity": 1, "data-export-opacity": exportOpacity, class: "planning-background", "pointer-events": "none" })); let y = geometry.top; visibleLevels().forEach((level, n) => { const p = periods(level.key); p.slice(0, -1).forEach((v, i) => { const x1 = x(v[1]), x2 = x(p[i + 1][1]); svg.append(el("rect", { x: x1, y, width: x2 - x1, height: level.height, fill: resolveColor(themeAppearance(level.altRole && i % 2 ? level.altRole : level.fillRole)), stroke: "#fff" }), el("text", { x: (x1 + x2) / 2, y: y + level.height / 2, "dominant-baseline": "middle", "text-anchor": "middle", class: level.cls }, v[0])); }); y += level.height + (n < visibleLevels().length - 1 ? 2 : 0); }); drawTimelineGrid(secondaryGridTimelineLevel.disabled ? "" : secondaryGridTimelineLevel.value, planningData.theme.grid.secondary); drawTimelineGrid(primaryGridTimelineLevel.disabled ? "" : primaryGridTimelineLevel.value, planningData.theme.grid.primary); drawWorkCalendarShading(); planningData.overlays.forEach(drawOverlayHandle); renderStackingGroup(planningData.milestones, planningData.items); planningData.lanes.forEach(lane => { if (lane._hiddenByCompact) return; const bg = lane.backgroundColor ?? lane.background; if (bg && (lane.backgroundOpacity ?? 1) > 0) svg.appendChild(el("rect", { x: geometry.left, y: lane._y, width: geometry.timelineW, height: lane._h, fill: resolveColor(bg), "fill-opacity": lane.backgroundOpacity ?? 1, "pointer-events": "none" })); if (lane.key !== "change") { const g = group("lane", lane, null, 43); g.appendChild(el("rect", { x: 14, y: lane._y, width: 58, height: lane._h, fill: resolveColor(lane.labelColor, resolveColor("@primaryStrong")), class: "planning-shape" })); const label = el("g", { transform: `translate(44 ${lane._y + lane._h / 2}) rotate(-90)` }); textLines(label, lane.label, 0, -4, "lane-label", 18); g.appendChild(label); svg.appendChild(g); } renderStackingGroup(lane.items, lane.milestones, lane); }); planningData.overlays.forEach(drawOverlay); planningData.milestones.forEach(drawMilestoneVerticalLine); planningData.lanes.filter(lane => !lane._hiddenByCompact).forEach(lane => lane.milestones.forEach(drawMilestoneVerticalLine)); const showSelectedDateDependencies = Boolean(selection && ["phase", "task", "global-milestone", "lane-milestone"].includes(selection.type) && editorSectionOpen("Informations")); if (dateDependenciesToggle.checked || showSelectedDateDependencies) drawDateDependencies(!dateDependenciesToggle.checked); const today = dateIso(); if (todayLineToggle.checked && today >= planningData.range.start && today <= planningData.range.end) svg.appendChild(el("line", { x1: x(today), y1: 0, x2: x(today), y2: geometry.H, stroke: resolveColor(themeAppearance("todayLine")), "stroke-width": 2, "pointer-events": "none" })); }
 
 function current() { if (!selection) return null; if (selection.type === "global-milestone") return { object: planningData.milestones.find(v => v.id === selection.itemId) }; if (selection.type === "overlay") return { object: planningData.overlays.find(v => v.id === selection.itemId) }; if (["phase", "task"].includes(selection.type) && !selection.laneId) return { object: planningData.items.find(v => v.id === selection.itemId), lane: null }; const lane = planningData.lanes.find(v => v.id === (selection.laneId || selection.itemId)); if (!lane) return null; if (selection.type === "lane") return { object: lane, lane }; return { object: (selection.type === "lane-milestone" ? lane.milestones : lane.items).find(v => v.id === selection.itemId), lane }; }
 function color(v) { return resolveColor(v); }
@@ -1688,8 +1767,8 @@ function normalise(data) {
   data.timeline.levels = { ...defaults.levels, ...data.timeline.levels };
   data.timeline.gridPrimaryLevel = data.timeline.gridPrimaryLevel ?? data.timeline.gridLevel ?? defaults.gridPrimaryLevel;
   data.timeline.gridSecondaryLevel = data.timeline.gridSecondaryLevel ?? defaults.gridSecondaryLevel;
-  if (!["year", "quarter", "month", "week"].includes(data.timeline.gridPrimaryLevel)) data.timeline.gridPrimaryLevel = defaults.gridPrimaryLevel;
-  if (data.timeline.gridSecondaryLevel !== "" && !["year", "quarter", "month", "week"].includes(data.timeline.gridSecondaryLevel)) data.timeline.gridSecondaryLevel = defaults.gridSecondaryLevel;
+  if (!["year", "quarter", "month", "week", "day"].includes(data.timeline.gridPrimaryLevel)) data.timeline.gridPrimaryLevel = defaults.gridPrimaryLevel;
+  if (data.timeline.gridSecondaryLevel !== "" && !["year", "quarter", "month", "week", "day"].includes(data.timeline.gridSecondaryLevel)) data.timeline.gridSecondaryLevel = defaults.gridSecondaryLevel;
   delete data.timeline.gridLevel;
   if (typeof data.timeline.showTodayLine !== "boolean") data.timeline.showTodayLine = defaults.showTodayLine;
   if (typeof data.timeline.showDateDependencies !== "boolean") data.timeline.showDateDependencies = defaults.showDateDependencies;
@@ -1697,6 +1776,19 @@ function normalise(data) {
   if (typeof data.timeline.trimEmptyLanes !== "boolean") data.timeline.trimEmptyLanes = defaults.trimEmptyLanes;
   if (!/^#[0-9a-f]{6}$/i.test(data.timeline.backgroundColor || "") && !/^@[A-Za-z][A-Za-z0-9]*$/.test(data.timeline.backgroundColor || "")) data.timeline.backgroundColor = defaults.backgroundColor;
   data.timeline.backgroundOpacity = Math.max(0, Math.min(1, Number.isFinite(Number(data.timeline.backgroundOpacity)) ? Number(data.timeline.backgroundOpacity) : defaults.backgroundOpacity));
+  const calendarDefaults = defaultWorkCalendar();
+  data.workCalendar ||= {};
+  const requestedWorkingDays = Array.isArray(data.workCalendar.workingDays) ? data.workCalendar.workingDays.map(Number).filter(day => Number.isInteger(day) && day >= 0 && day <= 6) : calendarDefaults.workingDays;
+  data.workCalendar.workingDays = [...new Set(requestedWorkingDays)].sort((a, b) => a - b);
+  if (!data.workCalendar.workingDays.length) data.workCalendar.workingDays = calendarDefaults.workingDays;
+  data.workCalendar.daysOff = Array.isArray(data.workCalendar.daysOff) ? data.workCalendar.daysOff.filter(day => /^\d{4}-\d{2}-\d{2}$/.test(day?.date || "")).map(day => ({ date: day.date, label: typeof day.label === "string" ? day.label : "" })) : [];
+  ["weeklyDaysOffDisplay", "daysOffDisplay"].forEach(key => {
+    const display = { ...calendarDefaults[key], ...(data.workCalendar[key] || {}) };
+    if (!["none", "shade", ...(key === "weeklyDaysOffDisplay" ? ["hide"] : [])].includes(display.mode)) display.mode = calendarDefaults[key].mode;
+    if (!/^#[0-9a-f]{6}$/i.test(display.color || "") && !/^@[A-Za-z][A-Za-z0-9]*$/.test(display.color || "")) display.color = calendarDefaults[key].color;
+    display.opacity = Math.max(0, Math.min(1, Number.isFinite(Number(display.opacity)) ? Number(display.opacity) : calendarDefaults[key].opacity));
+    data.workCalendar[key] = display;
+  });
   if (!data.itemTypes.task) data.itemTypes.task = clone(emptyPlanning().itemTypes.task);
   const normaliseMilestone = milestone => {
     if ("zOrder" in milestone && !Number.isFinite(Number(milestone.zOrder))) delete milestone.zOrder;
@@ -1916,6 +2008,7 @@ const baseRenderEditor = () => { originalBaseRenderEditor(); compactColorInputs(
 renderEditor = function () {
   if (selection?.type === "timeline") return renderTimelineEditor();
   if (selection?.type === "theme") return renderThemeEditor();
+  if (selection?.type === "work-calendar") return renderWorkCalendarEditor();
   restoreTimelineControls();
   const found = current();
   if (!found?.object || !["phase", "task"].includes(selection.type)) return baseRenderEditor();
@@ -2026,6 +2119,56 @@ function updateTimelineBackground(key, value) {
   planningData.timeline[key] = key === "backgroundOpacity" ? Math.max(0, Math.min(1, Number(value) || 0)) : value;
   markTimelineChange();
   render();
+}
+function updateWorkCalendar() { markTimelineChange(); render(); }
+function frenchHolidays(year) {
+  // Jours fériés légaux de France métropolitaine (hors spécificités locales).
+  const easter = new Date(year, 2, 21), a = year % 19, b = Math.floor(year / 100), c = year % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+  easter.setMonth(Math.floor((h + l - 7 * m + 114) / 31) - 1, (h + l - 7 * m + 114) % 31 + 1);
+  const relative = (days, label) => ({ date: dateIso(new Date(easter.getTime() + days * 86400000)), label });
+  return [
+    { date: `${year}-01-01`, label: "Jour de l’an" }, relative(1, "Lundi de Pâques"), { date: `${year}-05-01`, label: "Fête du Travail" }, { date: `${year}-05-08`, label: "Victoire 1945" }, relative(39, "Ascension"), relative(50, "Lundi de Pentecôte"), { date: `${year}-07-14`, label: "Fête nationale" }, { date: `${year}-08-15`, label: "Assomption" }, { date: `${year}-11-01`, label: "Toussaint" }, { date: `${year}-11-11`, label: "Armistice 1918" }, { date: `${year}-12-25`, label: "Noël" }
+  ];
+}
+function calendarDisplayControls(title, key, allowHide = false) {
+  const display = planningData.workCalendar[key];
+  const mode = input("Affichage", `${key}-mode`, display.mode, "select", [["none", "Ne rien changer"], ...(allowHide ? [["hide", "Masquer du planning"]] : []), ["shade", "Griser dans le planning"]]);
+  mode.querySelector("select").onchange = event => { display.mode = event.target.value; updateWorkCalendar(); renderWorkCalendarEditor(); };
+  const color = colorPicker("Couleur du gris", display.color, value => { display.color = value; updateWorkCalendar(); });
+  const opacity = input("Opacité (0 à 1)", `${key}-opacity`, display.opacity, "number");
+  const opacityInput = opacity.querySelector("input"); opacityInput.min = "0"; opacityInput.max = "1"; opacityInput.step = "0.01"; opacityInput.oninput = event => { display.opacity = Math.max(0, Math.min(1, Number(event.target.value) || 0)); updateWorkCalendar(); };
+  return section(title, [mode, ...(display.mode === "shade" ? [fieldGrid(color, opacity)] : [])], false);
+}
+function renderWorkCalendarEditor() {
+  editor.innerHTML = "";
+  const card = document.createElement("div"); card.className = "editor-card";
+  const top = document.createElement("div"); top.className = "editor-heading"; top.append(document.createTextNode("Jours travaillés"));
+  const close = document.createElement("button"); close.textContent = "×"; close.title = "Fermer"; close.onclick = clear; top.appendChild(close); card.appendChild(top);
+  const intro = document.createElement("p"); intro.className = "impact-note"; intro.textContent = "Définissez les jours travaillés habituels et les exceptions. Les réglages d’affichage sont indépendants.";
+  const weekdays = [[1, "Lundi"], [2, "Mardi"], [3, "Mercredi"], [4, "Jeudi"], [5, "Vendredi"], [6, "Samedi"], [0, "Dimanche"]].map(([day, label]) => {
+    const control = input(label, `working-day-${day}`, planningData.workCalendar.workingDays.includes(day), "checkbox");
+    control.querySelector("input").onchange = event => { const days = planningData.workCalendar.workingDays.filter(value => value !== day); if (event.target.checked) days.push(day); if (!days.length) { event.target.checked = true; return alert("Choisissez au moins un jour travaillé."); } planningData.workCalendar.workingDays = days.sort((a, b) => a - b); updateWorkCalendar(); renderWorkCalendarEditor(); };
+    return control;
+  });
+  card.append(section("Semaine de travail", [intro, fieldGrid(...weekdays)]));
+  const table = document.createElement("table"); table.className = "days-off-table";
+  const head = document.createElement("thead"); head.innerHTML = "<tr><th>Date</th><th>Libellé (facultatif)</th><th aria-label=\"Actions\"></th></tr>"; table.appendChild(head);
+  const body = document.createElement("tbody");
+  planningData.workCalendar.daysOff.forEach((day, index) => {
+    const row = document.createElement("tr"), date = document.createElement("input"), label = document.createElement("input"), remove = document.createElement("button"), action = document.createElement("td");
+    date.type = "date"; date.value = day.date; date.onchange = () => { if (date.value) { day.date = date.value; updateWorkCalendar(); } };
+    label.type = "text"; label.value = day.label; label.placeholder = "Ex. fermeture"; label.oninput = () => { day.label = label.value; updateWorkCalendar(); };
+    remove.type = "button"; remove.className = "delete-object"; remove.textContent = "×"; remove.title = "Supprimer ce jour"; remove.onclick = () => { planningData.workCalendar.daysOff.splice(index, 1); updateWorkCalendar(); renderWorkCalendarEditor(); };
+    const dateCell = document.createElement("td"), labelCell = document.createElement("td"); dateCell.appendChild(date); labelCell.appendChild(label); action.appendChild(remove); row.append(dateCell, labelCell, action); body.appendChild(row);
+  });
+  table.appendChild(body);
+  const add = document.createElement("button"); add.type = "button"; add.textContent = "Ajouter un jour"; add.onclick = () => { planningData.workCalendar.daysOff.push({ date: planningData.range.start, label: "" }); updateWorkCalendar(); renderWorkCalendarEditor(); };
+  const importHolidays = document.createElement("button"); importHolidays.type = "button"; importHolidays.textContent = "Importer les jours fériés français"; importHolidays.title = "Ajoute les jours fériés légaux de France métropolitaine sur toute la période du planning"; importHolidays.onclick = () => { const bounds = planningDateBounds(), years = Array.from({ length: Number(bounds.last.slice(0, 4)) - Number(bounds.first.slice(0, 4)) + 1 }, (_, index) => Number(bounds.first.slice(0, 4)) + index); const existing = new Set(planningData.workCalendar.daysOff.map(day => day.date)); years.flatMap(frenchHolidays).filter(day => day.date >= bounds.first && day.date <= bounds.last && !existing.has(day.date)).forEach(day => planningData.workCalendar.daysOff.push(day)); planningData.workCalendar.daysOff.sort((a, b) => a.date.localeCompare(b.date)); updateWorkCalendar(); renderWorkCalendarEditor(); };
+  const actions = document.createElement("div"); actions.className = "days-off-actions"; actions.append(add, importHolidays);
+  card.append(section("Jours fériés", [table, actions]));
+  card.append(calendarDisplayControls("Affichage des week-ends", "weeklyDaysOffDisplay", true));
+  card.append(calendarDisplayControls("Affichage des jours fériés", "daysOffDisplay"));
+  editor.appendChild(card); layout();
 }
 function renderTimelineEditor() {
   editor.innerHTML = "";
@@ -2213,6 +2356,7 @@ svg.ondblclick = event => {
   addPlanningObject("item", { lane, date: dateAtX(local.x), yOffset: local.y - lane._y - (lane.paddingTop ?? 0) });
 };
 themeButton.onclick = () => { selection = { type: "theme" }; renderEditor(); };
+workingDaysButton.onclick = () => { selection = { type: "work-calendar" }; renderEditor(); };
 readSavedPlans();
 const startingPlan = savedPlans.find(plan => plan.id === activePlanId);
 applyPlanning(startingPlan?.data || emptyPlanning(), { activeId: startingPlan?.id || null });
