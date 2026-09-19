@@ -52,6 +52,13 @@ Ce fichier peut être enregistré, par exemple, sous `mon-planning.json` puis im
       "timelineMonth": "@primary",
       "todayLine": "@danger"
     },
+    "timeline": {
+      "year": 12,
+      "quarter": 13,
+      "month": 18,
+      "week": 11,
+      "day": 10
+    },
     "grid": {
       "primary": { "color": "@border", "width": 1.2, "style": "solid" },
       "secondary": { "color": "@neutralSoft", "width": 0.6, "style": "dotted" }
@@ -121,7 +128,7 @@ Ce fichier peut être enregistré, par exemple, sous `mon-planning.json` puis im
 
 ### `theme`
 
-`preset` peut être `ocean`, `indigo`, `forest`, `sunset` ou `custom`. `colors` est le nuancier : `primary`, `primaryStrong`, `primarySoft`, `secondary`, `secondaryStrong`, `secondarySoft`, `accent`, `accentSoft`, `text`, `textSecondary`, `textOnDark`, `neutral`, `neutralSoft`, `surface`, `surfaceAlt`, `border`, `danger`, `warning` et `success`. `appearance` attribue une de ces couleurs à une partie du rendu. Les frises utilisent les paires `timelineYear` / `timelineYearAlternate`, `timelineQuarter` / `timelineQuarterAlternate`, `timelineMonth` / `timelineMonthAlternate`, `timelineWeek` / `timelineWeekAlternate` et `timelineDay` / `timelineDayAlternate` ; attribuez la même valeur aux deux rôles d’une paire pour désactiver visuellement l’alternance. `grid.primary` et `grid.secondary` définissent chacune la `color`, la `width` (en pixels) et le `style` (`solid`, `dashed` ou `dotted`) d’un quadrillage vertical. Les styles, lanes, jalons, overlays et le fond peuvent eux aussi utiliser un rôle avec `@` : par exemple `"fill": "@secondarySoft"`. Une couleur hexadécimale reste une surcharge indépendante du thème. À l’ouverture, le planning est normalisé vers ces seuls rôles.
+`preset` peut être `ocean`, `indigo`, `forest`, `sunset` ou `custom`. `colors` est le nuancier : `primary`, `primaryStrong`, `primarySoft`, `secondary`, `secondaryStrong`, `secondarySoft`, `accent`, `accentSoft`, `text`, `textSecondary`, `textOnDark`, `neutral`, `neutralSoft`, `surface`, `surfaceAlt`, `border`, `danger`, `warning` et `success`. `appearance` attribue une de ces couleurs à une partie du rendu. Les frises utilisent les paires `timelineYear` / `timelineYearAlternate`, `timelineQuarter` / `timelineQuarterAlternate`, `timelineMonth` / `timelineMonthAlternate`, `timelineWeek` / `timelineWeekAlternate` et `timelineDay` / `timelineDayAlternate` ; attribuez la même valeur aux deux rôles d’une paire pour désactiver visuellement l’alternance. `timeline` enregistre la taille de police, en pixels, de chaque niveau (`year`, `quarter`, `month`, `week`, `day`) ; elle est limitée de 6 à 48. `grid.primary` et `grid.secondary` définissent chacune la `color`, la `width` (en pixels) et le `style` (`solid`, `dashed` ou `dotted`) d’un quadrillage vertical. Les styles, lanes, jalons, overlays et le fond peuvent eux aussi utiliser un rôle avec `@` : par exemple `"fill": "@secondarySoft"`. Une couleur hexadécimale reste une surcharge indépendante du thème. À l’ouverture, le planning est normalisé vers ces seuls rôles.
 
 ### `timeline`
 
@@ -162,11 +169,11 @@ Toutes ces propriétés sont optionnelles ; les valeurs indiquées sont celles u
 | `left` | `86` | Marge gauche / zone des libellés de lane. |
 | `right` | `16` | Marge droite. |
 | `topMonths` | `8` | Marge haute. |
-| `yearHeight` | `20` | Hauteur de la frise des années. |
-| `quarterHeight` | `24` | Hauteur de la frise des trimestres. |
-| `monthHeight` | `40` | Hauteur de la frise des mois. |
-| `weekHeight` | `22` | Hauteur de la frise des semaines. |
-| `dayHeight` | `20` | Hauteur de la frise des jours. |
+| `yearHeight` | `20` | Hauteur de la frise des années (12 à 120 px). |
+| `quarterHeight` | `24` | Hauteur de la frise des trimestres (12 à 120 px). |
+| `monthHeight` | `40` | Hauteur de la frise des mois (12 à 120 px). |
+| `weekHeight` | `22` | Hauteur de la frise des semaines (12 à 120 px). |
+| `dayHeight` | `20` | Hauteur de la frise des jours (12 à 120 px). |
 | `timelineTop` | `58` | Position minimale de la frise. |
 | `lanesTop` | `160` | Ancien réglage conservé pour compatibilité ; la première lane se place désormais juste sous la timeline, après les éventuels éléments sans lane. |
 | `laneGap` | `5` | Espace entre deux lanes. |

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version de build : 1.009 -->
+<!-- Version de build : 1.010 -->
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
@@ -769,15 +769,15 @@ const THEME_PRESETS = {
 // colours without prescribing where each one is used.
 const THEME_COLOR_OPTIONS = [["primary", "Principale"], ["primaryStrong", "Principale — foncée"], ["primarySoft", "Principale — claire"], ["secondary", "Secondaire"], ["secondaryStrong", "Secondaire — foncée"], ["secondarySoft", "Secondaire — claire"], ["accent", "Accent"], ["accentSoft", "Accent — clair"], ["text", "Texte principal"], ["textSecondary", "Texte secondaire"], ["textOnDark", "Texte sur fond sombre"], ["neutral", "Gris neutre"], ["neutralSoft", "Gris neutre — clair"], ["surface", "Fond principal"], ["surfaceAlt", "Fond alternatif"], ["border", "Bordure / quadrillage"], ["danger", "Alerte / échéance critique"], ["warning", "Attention"], ["success", "Succès / validation"]];
 const THEME_COLOR_GROUPS = [["Principale", ["primary", "primaryStrong", "primarySoft"]], ["Secondaire", ["secondary", "secondaryStrong", "secondarySoft"]], ["Accent", ["accent", "accentSoft"]], ["Texte", ["text", "textSecondary", "textOnDark"]], ["Neutres", ["neutral", "neutralSoft", "border"]], ["Fonds", ["surface", "surfaceAlt"]], ["États", ["danger", "warning", "success"]]];
-const THEME_APPEARANCE_OPTIONS = [["timelineYear", "Frise — années"], ["timelineYearAlternate", "Frise — années alternées"], ["timelineQuarter", "Frise — trimestres"], ["timelineQuarterAlternate", "Frise — trimestres alternés"], ["timelineMonth", "Frise — mois"], ["timelineMonthAlternate", "Frise — mois alternés"], ["timelineWeek", "Frise — semaines"], ["timelineWeekAlternate", "Frise — semaines alternées"], ["timelineDay", "Frise — jours"], ["timelineDayAlternate", "Frise — jours alternés"], ["todayLine", "Ligne d’aujourd’hui"], ["dependencyIncoming", "Dépendance entrante"], ["dependencyOutgoing", "Dépendance sortante"], ["dependencyNeutral", "Dépendance neutre"]];
 const DEFAULT_THEME_APPEARANCE = { timelineYear: "@primaryStrong", timelineYearAlternate: "@primary", timelineQuarter: "@primaryStrong", timelineQuarterAlternate: "@primaryStrong", timelineMonth: "@primary", timelineMonthAlternate: "@primary", timelineWeek: "@primarySoft", timelineWeekAlternate: "@primarySoft", timelineDay: "@neutralSoft", timelineDayAlternate: "@neutralSoft", todayLine: "@danger", dependencyIncoming: "@accent", dependencyOutgoing: "@primaryStrong", dependencyNeutral: "@neutral" };
 const DEFAULT_THEME_GRID = { primary: { color: "@border", width: 1.2, style: "solid" }, secondary: { color: "@neutralSoft", width: 0.6, style: "dotted" } };
+const DEFAULT_TIMELINE_FONT_SIZES = { year: 12, quarter: 13, month: 18, week: 11, day: 10 };
 const timelineLevels = [
-  { key: "year", toggle: document.getElementById("toggleYearTimeline"), h: 20, fillRole: "timelineYear", altRole: "timelineYearAlternate", cls: "year-label" },
-  { key: "quarter", toggle: document.getElementById("toggleQuarterTimeline"), h: 24, fillRole: "timelineQuarter", altRole: "timelineQuarterAlternate", cls: "quarter-label" },
-  { key: "month", toggle: document.getElementById("toggleMonthTimeline"), h: 40, fillRole: "timelineMonth", altRole: "timelineMonthAlternate", cls: "month-label" },
-  { key: "week", toggle: document.getElementById("toggleWeekTimeline"), h: 22, fillRole: "timelineWeek", altRole: "timelineWeekAlternate", cls: "week-label" },
-  { key: "day", toggle: document.getElementById("toggleDayTimeline"), h: 20, fillRole: "timelineDay", altRole: "timelineDayAlternate", cls: "day-label" }
+  { key: "year", label: "Années", toggle: document.getElementById("toggleYearTimeline"), h: 20, fillRole: "timelineYear", altRole: "timelineYearAlternate", cls: "year-label" },
+  { key: "quarter", label: "Trimestres", toggle: document.getElementById("toggleQuarterTimeline"), h: 24, fillRole: "timelineQuarter", altRole: "timelineQuarterAlternate", cls: "quarter-label" },
+  { key: "month", label: "Mois", toggle: document.getElementById("toggleMonthTimeline"), h: 40, fillRole: "timelineMonth", altRole: "timelineMonthAlternate", cls: "month-label" },
+  { key: "week", label: "Semaines", toggle: document.getElementById("toggleWeekTimeline"), h: 22, fillRole: "timelineWeek", altRole: "timelineWeekAlternate", cls: "week-label" },
+  { key: "day", label: "Jours", toggle: document.getElementById("toggleDayTimeline"), h: 20, fillRole: "timelineDay", altRole: "timelineDayAlternate", cls: "day-label" }
 ];
 const defaultTimelineSettings = () => ({
   levels: { year: true, quarter: false, month: true, week: false, day: false },
@@ -812,9 +812,9 @@ function emptyPlanning() {
   const year = new Date().getFullYear();
   return {
     range: { start: `${year}-01-01`, end: `${year}-12-31` },
-    layout: { width: 1500, left: 86, right: 16, topMonths: 8, monthHeight: 40, dayHeight: 20, timelineTop: 58, lanesTop: 160, laneGap: 5, lanePaddingBottom: 10, defaultItemHeight: 30 },
+    layout: { width: 1500, left: 86, right: 16, topMonths: 8, yearHeight: 20, quarterHeight: 24, monthHeight: 40, weekHeight: 22, dayHeight: 20, timelineTop: 58, lanesTop: 160, laneGap: 5, lanePaddingBottom: 10, defaultItemHeight: 30 },
     monthLocale: "fr-FR", items: [], milestones: [], lanes: [], overlays: [], timeline: defaultTimelineSettings(), workCalendar: defaultWorkCalendar(),
-    theme: { preset: "ocean", colors: clone(THEME_PRESETS.ocean.colors), appearance: clone(DEFAULT_THEME_APPEARANCE) },
+    theme: { preset: "ocean", colors: clone(THEME_PRESETS.ocean.colors), appearance: clone(DEFAULT_THEME_APPEARANCE), timeline: clone(DEFAULT_TIMELINE_FONT_SIZES) },
     itemTypes: { task: { fill: "@surface", stroke: "@primary", textColor: "@text", strokeWidth: 1.4, shape: "chevron", h: 30, textClass: "task-label" } }
   };
 }
@@ -1234,7 +1234,7 @@ function laneContentHeight(items, milestones, lane, milestoneTopInset = 0) {
   if (lane === unlanedArea) return Math.max(...bottoms) + (planningData.layout.lanePaddingBottom ?? 10);
   return Math.max(Number(lane.minHeight) || 0, Math.max(...bottoms) + (lane.paddingBottom ?? 0));
 }
-function visibleLevels() { return timelineLevels.filter(v => v.toggle.checked).map(v => ({ ...v, height: planningData.layout[`${v.key}Height`] ?? v.h })); }
+function visibleLevels() { return timelineLevels.filter(v => v.toggle.checked).map(v => ({ ...v, height: planningData.layout[`${v.key}Height`] ?? v.h, fontSize: planningData.theme.timeline[v.key] })); }
 function setup() { const c = planningData.layout, levels = visibleLevels(), header = levels.reduce((n, v, i) => n + v.height + (i ? 2 : 0), 0), width = c.width ?? 1500, left = c.left ?? 86, right = c.right ?? 16; svg.style.setProperty("--display-width", `${Math.min(100, Math.max(1, Math.round(width / 15)))}%`); const startCoordinate = timelineCoordinate(planningData.range.start), endCoordinate = timelineCoordinate(rangeEndBoundary()); x = date => left + ((timelineCoordinate(date) - startCoordinate) / Math.max(1, endCoordinate - startCoordinate)) * (width - left - right);
   // Unassigned items use the same vertical positioning model as lane items:
   // start just below the timeline, then apply their yOffset.
@@ -1406,7 +1406,7 @@ function milestoneX(date) {
   const start = x(visibleDate), end = x(addDays(visibleDate, 1));
   return start + (end - start) / 2;
 }
-function drawMilestone(item, lane) { if ((planningData.timeline.compactMode || (planningData.timeline.trimEmptyLanes && lane)) && !itemVisibleInRange(item)) return; const global = !lane, lines = milestoneLines(item, global ? "title" : "label", global ? undefined : "title"), sub = milestoneLines(item, "sub"), color = resolveColor(item.color, resolveColor("@text")), top = milestoneTop(item, lane), cx = milestoneX(resolvedDate(item, "date")), g = group(global ? "global-milestone" : "lane-milestone", item, lane, cx); textLines(g, lines, cx, top, "milestone-label", 14, color); if (sub.length) textLines(g, sub, cx, top + lines.length * 14 + 1, "milestone-sub", 12, color); g.appendChild(milestoneSymbol(item.shape || "star", cx, milestoneSymbolCenter(item, top, lines, sub), milestoneSize(item), color)); svg.appendChild(g); }
+function drawMilestone(item, lane) { if (!itemVisibleInRange(item)) return; const global = !lane, lines = milestoneLines(item, global ? "title" : "label", global ? undefined : "title"), sub = milestoneLines(item, "sub"), color = resolveColor(item.color, resolveColor("@text")), top = milestoneTop(item, lane), cx = milestoneX(resolvedDate(item, "date")), g = group(global ? "global-milestone" : "lane-milestone", item, lane, cx); textLines(g, lines, cx, top, "milestone-label", 14, color); if (sub.length) textLines(g, sub, cx, top + lines.length * 14 + 1, "milestone-sub", 12, color); g.appendChild(milestoneSymbol(item.shape || "star", cx, milestoneSymbolCenter(item, top, lines, sub), milestoneSize(item), color)); svg.appendChild(g); }
 function milestoneLineDasharray(style) { return style === "dashed" ? "8 5" : style === "dotted" ? "2 4" : null; }
 function drawMilestoneVerticalLine(item) {
   if (!item.showVerticalLine) return;
@@ -1509,7 +1509,7 @@ function drawWorkCalendarShading() {
   // reçoit pas un second calque ni la couleur des jours supplémentaires.
   drawCalendarShading(date => extraDaysOff.has(date) && !weeklyDayOff(date), calendar.daysOffDisplay);
 }
-function render() { setup(); svg.innerHTML = ""; const timeline = planningData.timeline, exportOpacity = Math.max(0, Math.min(1, Number(timeline.backgroundOpacity) || 0)); svg.appendChild(el("rect", { x: 0, y: 0, width: geometry.W, height: geometry.H, fill: resolveColor(timeline.backgroundColor, resolveColor("@surface")), "fill-opacity": 1, "data-export-opacity": exportOpacity, class: "planning-background", "pointer-events": "none" })); let y = geometry.top; visibleLevels().forEach((level, n) => { const p = periods(level.key); p.slice(0, -1).forEach((v, i) => { const x1 = x(v[1]), x2 = x(p[i + 1][1]); svg.append(el("rect", { x: x1, y, width: x2 - x1, height: level.height, fill: resolveColor(themeAppearance(level.altRole && i % 2 ? level.altRole : level.fillRole)), stroke: "#fff" }), el("text", { x: (x1 + x2) / 2, y: y + level.height / 2, "dominant-baseline": "middle", "text-anchor": "middle", class: level.cls }, v[0])); }); y += level.height + (n < visibleLevels().length - 1 ? 2 : 0); }); drawTimelineGrid(secondaryGridTimelineLevel.disabled ? "" : secondaryGridTimelineLevel.value, planningData.theme.grid.secondary); drawTimelineGrid(primaryGridTimelineLevel.disabled ? "" : primaryGridTimelineLevel.value, planningData.theme.grid.primary); drawWorkCalendarShading(); planningData.overlays.forEach(drawOverlayHandle); renderStackingGroup(planningData.milestones, planningData.items); planningData.lanes.forEach(lane => { if (lane._hiddenByCompact) return; const bg = lane.backgroundColor ?? lane.background; if (bg && (lane.backgroundOpacity ?? 1) > 0) svg.appendChild(el("rect", { x: geometry.left, y: lane._y, width: geometry.timelineW, height: lane._h, fill: resolveColor(bg), "fill-opacity": lane.backgroundOpacity ?? 1, "pointer-events": "none" })); if (lane.key !== "change") { const g = group("lane", lane, null, 43); g.appendChild(el("rect", { x: 14, y: lane._y, width: 58, height: lane._h, fill: resolveColor(lane.labelColor, resolveColor("@primaryStrong")), class: "planning-shape" })); const label = el("g", { transform: `translate(44 ${lane._y + lane._h / 2}) rotate(-90)` }); textLines(label, lane.label, 0, -4, "lane-label", 18); g.appendChild(label); svg.appendChild(g); } renderStackingGroup(lane.items, lane.milestones, lane); }); planningData.overlays.forEach(drawOverlay); planningData.milestones.forEach(drawMilestoneVerticalLine); planningData.lanes.filter(lane => !lane._hiddenByCompact).forEach(lane => lane.milestones.forEach(drawMilestoneVerticalLine)); const showSelectedDateDependencies = Boolean(selection && ["phase", "task", "global-milestone", "lane-milestone"].includes(selection.type) && editorSectionOpen("Informations")); if (dateDependenciesToggle.checked || showSelectedDateDependencies) drawDateDependencies(!dateDependenciesToggle.checked); const today = dateIso(); if (todayLineToggle.checked && today >= planningData.range.start && today <= planningData.range.end) svg.appendChild(el("line", { x1: x(today), y1: 0, x2: x(today), y2: geometry.H, stroke: resolveColor(themeAppearance("todayLine")), "stroke-width": 2, "pointer-events": "none" })); }
+function render() { setup(); svg.innerHTML = ""; const timeline = planningData.timeline, exportOpacity = Math.max(0, Math.min(1, Number(timeline.backgroundOpacity) || 0)); svg.appendChild(el("rect", { x: 0, y: 0, width: geometry.W, height: geometry.H, fill: resolveColor(timeline.backgroundColor, resolveColor("@surface")), "fill-opacity": 1, "data-export-opacity": exportOpacity, class: "planning-background", "pointer-events": "none" })); let y = geometry.top; visibleLevels().forEach((level, n) => { const p = periods(level.key); p.slice(0, -1).forEach((v, i) => { const x1 = x(v[1]), x2 = x(p[i + 1][1]); svg.append(el("rect", { x: x1, y, width: x2 - x1, height: level.height, fill: resolveColor(themeAppearance(level.altRole && i % 2 ? level.altRole : level.fillRole)), stroke: "#fff" }), el("text", { x: (x1 + x2) / 2, y: y + level.height / 2, "dominant-baseline": "middle", "text-anchor": "middle", class: level.cls, style: `font-size: ${level.fontSize}px` }, v[0])); }); y += level.height + (n < visibleLevels().length - 1 ? 2 : 0); }); drawTimelineGrid(secondaryGridTimelineLevel.disabled ? "" : secondaryGridTimelineLevel.value, planningData.theme.grid.secondary); drawTimelineGrid(primaryGridTimelineLevel.disabled ? "" : primaryGridTimelineLevel.value, planningData.theme.grid.primary); drawWorkCalendarShading(); planningData.overlays.forEach(drawOverlayHandle); renderStackingGroup(planningData.milestones, planningData.items); planningData.lanes.forEach(lane => { if (lane._hiddenByCompact) return; const bg = lane.backgroundColor ?? lane.background; if (bg && (lane.backgroundOpacity ?? 1) > 0) svg.appendChild(el("rect", { x: geometry.left, y: lane._y, width: geometry.timelineW, height: lane._h, fill: resolveColor(bg), "fill-opacity": lane.backgroundOpacity ?? 1, "pointer-events": "none" })); if (lane.key !== "change") { const g = group("lane", lane, null, 43); g.appendChild(el("rect", { x: 14, y: lane._y, width: 58, height: lane._h, fill: resolveColor(lane.labelColor, resolveColor("@primaryStrong")), class: "planning-shape" })); const label = el("g", { transform: `translate(44 ${lane._y + lane._h / 2}) rotate(-90)` }); textLines(label, lane.label, 0, -4, "lane-label", 18); g.appendChild(label); svg.appendChild(g); } renderStackingGroup(lane.items, lane.milestones, lane); }); planningData.overlays.forEach(drawOverlay); planningData.milestones.forEach(drawMilestoneVerticalLine); planningData.lanes.filter(lane => !lane._hiddenByCompact).forEach(lane => lane.milestones.forEach(drawMilestoneVerticalLine)); const showSelectedDateDependencies = Boolean(selection && ["phase", "task", "global-milestone", "lane-milestone"].includes(selection.type) && editorSectionOpen("Informations")); if (dateDependenciesToggle.checked || showSelectedDateDependencies) drawDateDependencies(!dateDependenciesToggle.checked); const today = dateIso(); if (todayLineToggle.checked && today >= planningData.range.start && today <= planningData.range.end) svg.appendChild(el("line", { x1: x(today), y1: 0, x2: x(today), y2: geometry.H, stroke: resolveColor(themeAppearance("todayLine")), "stroke-width": 2, "pointer-events": "none" })); }
 
 function current() { if (!selection) return null; if (selection.type === "global-milestone") return { object: planningData.milestones.find(v => v.id === selection.itemId) }; if (selection.type === "overlay") return { object: planningData.overlays.find(v => v.id === selection.itemId) }; if (["phase", "task"].includes(selection.type) && !selection.laneId) return { object: planningData.items.find(v => v.id === selection.itemId), lane: null }; const lane = planningData.lanes.find(v => v.id === (selection.laneId || selection.itemId)); if (!lane) return null; if (selection.type === "lane") return { object: lane, lane }; return { object: (selection.type === "lane-milestone" ? lane.milestones : lane.items).find(v => v.id === selection.itemId), lane }; }
 function color(v) { return resolveColor(v); }
@@ -1747,13 +1747,18 @@ function normalise(data) {
   // discarded instead of being carried as hidden aliases in the palette.
   const colors = Object.fromEntries(Object.keys(preset.colors).map(key => [key, requestedColors[key] ?? preset.colors[key]]));
   const legacyGridColor = data.theme?.appearance?.timelineGrid, { timelineGrid: _legacyGrid, ...appearance } = data.theme?.appearance || {};
-  data.theme = { preset: presetId, colors, appearance: { ...DEFAULT_THEME_APPEARANCE, ...appearance }, grid: { primary: { ...DEFAULT_THEME_GRID.primary, ...(data.theme?.grid?.primary || {}), ...(data.theme?.grid?.primary?.color ? {} : legacyGridColor ? { color: legacyGridColor } : {}) }, secondary: { ...DEFAULT_THEME_GRID.secondary, ...(data.theme?.grid?.secondary || {}) } } };
+  data.theme = { preset: presetId, colors, appearance: { ...DEFAULT_THEME_APPEARANCE, ...appearance }, timeline: { ...DEFAULT_TIMELINE_FONT_SIZES, ...(data.theme?.timeline || {}) }, grid: { primary: { ...DEFAULT_THEME_GRID.primary, ...(data.theme?.grid?.primary || {}), ...(data.theme?.grid?.primary?.color ? {} : legacyGridColor ? { color: legacyGridColor } : {}) }, secondary: { ...DEFAULT_THEME_GRID.secondary, ...(data.theme?.grid?.secondary || {}) } } };
   Object.keys(data.theme.colors).forEach(key => { if (!/^#[0-9a-f]{6}$/i.test(data.theme.colors[key])) data.theme.colors[key] = preset.colors[key] || "#000000"; });
   Object.keys(data.theme.appearance).forEach(key => {
     const value = data.theme.appearance[key], token = typeof value === "string" ? value.slice(1) : "";
     const isThemeColor = /^@[A-Za-z][A-Za-z0-9]*$/.test(value || "") && data.theme.colors[token];
     const isCustomColor = /^#[0-9a-f]{6}$/i.test(value || "");
     if (!isThemeColor && !isCustomColor) data.theme.appearance[key] = DEFAULT_THEME_APPEARANCE[key] || "@text";
+  });
+  timelineLevels.forEach(level => {
+    data.theme.timeline[level.key] = Math.max(6, Math.min(48, Number.isFinite(Number(data.theme.timeline[level.key])) ? Number(data.theme.timeline[level.key]) : DEFAULT_TIMELINE_FONT_SIZES[level.key]));
+    const heightKey = `${level.key}Height`;
+    data.layout[heightKey] = Math.max(12, Math.min(120, Number.isFinite(Number(data.layout[heightKey])) ? Number(data.layout[heightKey]) : level.h));
   });
   ["primary", "secondary"].forEach(key => {
     const grid = data.theme.grid[key], token = typeof grid.color === "string" ? grid.color.slice(1) : "";
@@ -2218,6 +2223,7 @@ function setThemePreset(id) {
     preset: id,
     colors: clone(THEME_PRESETS[id].colors),
     appearance: clone(planningData.theme.appearance || DEFAULT_THEME_APPEARANCE),
+    timeline: clone(planningData.theme.timeline || DEFAULT_TIMELINE_FONT_SIZES),
     grid: clone(planningData.theme.grid || DEFAULT_THEME_GRID)
   };
   applyThemeToApp();
@@ -2234,6 +2240,14 @@ function updateThemeAppearance(key, value) {
   const isThemeColor = /^@([A-Za-z][A-Za-z0-9]*)$/.exec(value || "")?.[1];
   if ((isThemeColor && !themeColors()[isThemeColor]) || (!isThemeColor && !/^#[0-9a-f]{6}$/i.test(value || ""))) return;
   planningData.theme.appearance[key] = value;
+  isDirty = true; importedVersion = false; status(); render();
+}
+function updateTimelineLevelStyle(level, key, value) {
+  if (key === "height") {
+    planningData.layout[`${level}Height`] = Math.max(12, Math.min(120, Number(value) || timelineLevels.find(candidate => candidate.key === level)?.h || 20));
+  } else if (key === "fontSize") {
+    planningData.theme.timeline[level] = Math.max(6, Math.min(48, Number(value) || DEFAULT_TIMELINE_FONT_SIZES[level]));
+  } else return;
   isDirty = true; importedVersion = false; status(); render();
 }
 function updateThemeGrid(level, key, value) {
@@ -2286,9 +2300,26 @@ function renderThemeEditor() {
   });
   const gridNote = document.createElement("p"); gridNote.className = "hint"; gridNote.textContent = "Le quadrillage secondaire est volontairement discret par défaut et ne s’affiche que lorsqu’une périodicité lui est attribuée dans la frise.";
   card.append(section("Quadrillage vertical", [gridNote, ...gridFields], false));
-  const appearanceFields = THEME_APPEARANCE_OPTIONS.map(([key, label]) => colorPicker(label, themeAppearance(key), value => updateThemeAppearance(key, value)));
-  const appearanceNote = document.createElement("p"); appearanceNote.className = "hint"; appearanceNote.textContent = "Choisissez une couleur du nuancier ou une couleur personnalisée pour chaque partie du rendu.";
-  card.append(section("Attribution au planning", [appearanceNote, fieldGrid(...appearanceFields)], false));
+  const selectedTimelineLevel = timelineLevels[0];
+  const levelPicker = input("Niveau à modifier", "theme-timeline-level", selectedTimelineLevel.key, "select", timelineLevels.map(level => [level.key, level.label]));
+  const levelFields = document.createElement("div");
+  const renderTimelineLevelFields = () => {
+    const level = timelineLevels.find(candidate => candidate.key === levelPicker.querySelector("select").value) || selectedTimelineLevel;
+    const mainColor = colorPicker("Couleur principale", themeAppearance(level.fillRole), value => updateThemeAppearance(level.fillRole, value));
+    const alternateColor = colorPicker("Couleur alternée", themeAppearance(level.altRole), value => updateThemeAppearance(level.altRole, value));
+    const height = input("Hauteur de ligne (12 à 120 px)", `theme-${level.key}-height`, planningData.layout[`${level.key}Height`], "number");
+    const heightInput = height.querySelector("input"); heightInput.min = "12"; heightInput.max = "120"; heightInput.step = "1"; heightInput.oninput = event => updateTimelineLevelStyle(level.key, "height", event.target.value);
+    const fontSize = input("Taille de police (6 à 48 px)", `theme-${level.key}-font-size`, planningData.theme.timeline[level.key], "number");
+    const fontSizeInput = fontSize.querySelector("input"); fontSizeInput.min = "6"; fontSizeInput.max = "48"; fontSizeInput.step = "1"; fontSizeInput.oninput = event => updateTimelineLevelStyle(level.key, "fontSize", event.target.value);
+    levelFields.replaceChildren(fieldGrid(mainColor, alternateColor), fieldGrid(height, fontSize));
+  };
+  levelPicker.querySelector("select").onchange = renderTimelineLevelFields;
+  renderTimelineLevelFields();
+  const timelineNote = document.createElement("p"); timelineNote.className = "hint"; timelineNote.textContent = "Choisissez un niveau pour régler ses couleurs, sa hauteur et sa taille de police.";
+  card.append(section("Frise temporelle", [timelineNote, levelPicker, levelFields], false));
+  const lineFields = [["todayLine", "Ligne d’aujourd’hui"], ["dependencyIncoming", "Dépendance entrante"], ["dependencyOutgoing", "Dépendance sortante"], ["dependencyNeutral", "Dépendance neutre"]].map(([key, label]) => colorPicker(label, themeAppearance(key), value => updateThemeAppearance(key, value)));
+  const lineNote = document.createElement("p"); lineNote.className = "hint"; lineNote.textContent = "Choisissez une couleur du nuancier ou une couleur personnalisée pour les lignes et les flèches.";
+  card.append(section("Lignes et flèches", [lineNote, fieldGrid(...lineFields)], false));
   editor.appendChild(card); layout();
 }
 function pinEditorActions() {
