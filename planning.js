@@ -1350,7 +1350,14 @@ function renderTimelineEditor() {
 }
 function setThemePreset(id) {
   if (!THEME_PRESETS[id]) return;
-  planningData.theme = { preset: id, colors: clone(THEME_PRESETS[id].colors), appearance: clone(planningData.theme.appearance || DEFAULT_THEME_APPEARANCE) };
+  // Keep the rendering settings that are independent of the starting palette.
+  // Dropping `grid` here made the next render fail when it drew the timeline.
+  planningData.theme = {
+    preset: id,
+    colors: clone(THEME_PRESETS[id].colors),
+    appearance: clone(planningData.theme.appearance || DEFAULT_THEME_APPEARANCE),
+    grid: clone(planningData.theme.grid || DEFAULT_THEME_GRID)
+  };
   applyThemeToApp();
   isDirty = true; importedVersion = false; status(); render();
 }
