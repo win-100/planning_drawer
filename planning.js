@@ -43,6 +43,7 @@ const defaultTimelineSettings = () => ({
   showTodayLine: true,
   showDateDependencies: false,
   compactMode: false,
+  trimEmptyLanes: false,
   backgroundColor: "@surface",
   backgroundOpacity: 0
 });
@@ -368,6 +369,28 @@ function itemVisibleInRange(item) {
   const start = resolvedDate(item, "start"), end = resolvedDate(item, "end");
   return Boolean(start && end && end > planningData.range.start && start < planningData.range.end);
 }
+function periodLayoutEnabled() { return planningData.timeline.compactMode || planningData.timeline.trimEmptyLanes; }
+function hasVisibleAbsoluteRootContent() {
+  return planningData.items.concat(planningData.milestones).some(item => itemVisibleInRange(item) && relativeMode(item) === "absolute");
+}
+function prepareWhitespaceTrim(items, milestones, lane) {
+  if (!planningData.timeline.trimEmptyLanes) {
+    delete lane._trimOffset;
+    delete lane._hiddenByCompact;
+    return;
+  }
+  const milestoneLane = lane === unlanedArea ? null : lane;
+  const entries = [
+    ...items.filter(itemVisibleInRange).map(item => ({ item, top: naturalItemTop(item, lane) - lane._y })),
+    ...milestones.filter(itemVisibleInRange).map(item => ({ item, top: naturalMilestoneTop(item, milestoneLane) - lane._y }))
+  ];
+  lane._hiddenByCompact = !entries.length;
+  const origin = lane === unlanedArea ? 0 : lane.paddingTop ?? 0;
+  const first = entries.reduce((current, entry) => !current || entry.top < current.top ? entry : current, null);
+  // In the root area, an absolute first element defines the intentional top
+  // spacing. It must not move merely because earlier objects are out of range.
+  lane._trimOffset = !first || (lane === unlanedArea && relativeMode(first.item) === "absolute") ? 0 : Math.max(0, first.top - origin);
+}
 function compactReference(item, lane, findReference) {
   const mode = relativeMode(item);
   if (mode === "absolute" || !item.relativeTo) return null;
@@ -417,12 +440,19 @@ function relativeTop(item, lane, relation, visiting, milestone) {
   return referenceTop + offset;
 }
 function itemTop(item, lane, visiting = new Set()) {
-  if (!planningData.timeline.compactMode || visiting.has(item.id)) return naturalItemTop(item, lane, visiting);
+  if (!planningData.timeline.compactMode || visiting.has(item.id)) {
+    const top = naturalItemTop(item, lane, visiting);
+    return planningData.timeline.trimEmptyLanes ? top - (lane?._trimOffset || 0) : top;
+  }
   const relation = compactReference(item, lane, itemById);
   return relation ? relativeTop(item, lane, relation, visiting, false) : naturalItemTop(item, lane, visiting);
 }
 function milestoneTop(item, lane, visiting = new Set()) {
-  if (!planningData.timeline.compactMode || visiting.has(item.id)) return naturalMilestoneTop(item, lane, visiting);
+  if (!planningData.timeline.compactMode || visiting.has(item.id)) {
+    const top = naturalMilestoneTop(item, lane, visiting);
+    const container = lane || unlanedArea;
+    return planningData.timeline.trimEmptyLanes ? top - (container._trimOffset || 0) : top;
+  }
   const relation = compactReference(item, lane, positionReferenceById);
   return relation ? relativeTop(item, lane, relation, visiting, true) : naturalMilestoneTop(item, lane, visiting);
 }
@@ -435,8 +465,12 @@ function relativeYOffsetForMilestoneTop(item, reference, top) {
 }
 function laneContentHeight(items, milestones, lane, milestoneTopInset = 0) {
   const milestoneLane = lane === unlanedArea ? null : lane;
-  const displayedItems = planningData.timeline.compactMode ? items.filter(itemVisibleInRange) : items;
-  const displayedMilestones = planningData.timeline.compactMode ? milestones.filter(itemVisibleInRange) : milestones;
+  // A visible, absolutely positioned root object (typically a global
+  // milestone) defines the intentional geometry of the area without lane.
+  // The intermediate mode must not shrink that area around it.
+  const preserveRootArea = lane === unlanedArea && planningData.timeline.trimEmptyLanes && !planningData.timeline.compactMode && hasVisibleAbsoluteRootContent();
+  const displayedItems = periodLayoutEnabled() && !preserveRootArea ? items.filter(itemVisibleInRange) : items;
+  const displayedMilestones = periodLayoutEnabled() && !preserveRootArea ? milestones.filter(itemVisibleInRange) : milestones;
   const bottoms = [0, ...displayedItems.map(item => itemTop(item, lane) - lane._y + itemHeight(item)), ...displayedMilestones.map(item => milestoneTop(item, milestoneLane) - lane._y + milestoneHeight(item))];
   if (lane === unlanedArea) return Math.max(...bottoms) + (planningData.layout.lanePaddingBottom ?? 10);
   return Math.max(Number(lane.minHeight) || 0, Math.max(...bottoms) + (lane.paddingBottom ?? 0));
@@ -448,16 +482,25 @@ function setup() { const c = planningData.layout, levels = visibleLevels(), head
   unlanedArea._y = Math.max((c.timelineTop ?? 58), (c.topMonths ?? 8) + header) + (c.laneGap ?? 5);
   const hasUnlanedContent = planningData.timeline.compactMode
     ? planningData.items.some(itemVisibleInRange) || planningData.milestones.some(itemVisibleInRange)
-    : planningData.items.length || planningData.milestones.length;
+    : planningData.timeline.trimEmptyLanes
+      ? hasVisibleAbsoluteRootContent() || planningData.items.some(itemVisibleInRange) || planningData.milestones.some(itemVisibleInRange)
+      : planningData.items.length || planningData.milestones.length;
   // Global milestones retain their existing visual offset below the timeline;
   // account for that offset while the virtual lane reserves their height.
   const globalMilestoneInset = Math.max(0, 22 - (c.laneGap ?? 5));
   const arrange = () => {
+    prepareWhitespaceTrim(planningData.items, planningData.milestones, unlanedArea);
     unlanedArea._h = hasUnlanedContent ? laneContentHeight(planningData.items, planningData.milestones, unlanedArea, globalMilestoneInset) : 0;
     // The first lane immediately follows the timeline, unless unassigned items
     // above it require additional space.
     let firstY = unlanedArea._y + unlanedArea._h + (hasUnlanedContent ? c.laneGap ?? 5 : 0), nextY = firstY;
-    planningData.lanes.forEach(lane => { lane._y = nextY; lane._h = laneContentHeight(lane.items, lane.milestones, lane); nextY += lane._h + (c.laneGap ?? 5); });
+    planningData.lanes.forEach(lane => {
+      lane._y = nextY;
+      prepareWhitespaceTrim(lane.items, lane.milestones, lane);
+      if (lane._hiddenByCompact) { lane._h = 0; return; }
+      lane._h = laneContentHeight(lane.items, lane.milestones, lane);
+      nextY += lane._h + (c.laneGap ?? 5);
+    });
     return nextY;
   };
   let y = arrange();
@@ -576,7 +619,7 @@ function milestoneSymbol(shape, cx, cy, size, color) {
   return el("path", { ...attrs, d: `M ${points.join(" L ")} Z` });
 }
 function milestoneSymbolCenter(item, top, lines, sub) { const symbolTop = top + lines.length * 14 + sub.length * 12 - (sub.length ? 7 : 10); return symbolTop + milestoneSize(item) / 2; }
-function drawMilestone(item, lane) { if (planningData.timeline.compactMode && !itemVisibleInRange(item)) return; const global = !lane, lines = milestoneLines(item, global ? "title" : "label", global ? undefined : "title"), sub = milestoneLines(item, "sub"), color = resolveColor(item.color, resolveColor("@text")), top = milestoneTop(item, lane), cx = x(resolvedDate(item, "date")), g = group(global ? "global-milestone" : "lane-milestone", item, lane, cx); textLines(g, lines, cx, top, "milestone-label", 14, color); if (sub.length) textLines(g, sub, cx, top + lines.length * 14 + 1, "milestone-sub", 12, color); g.appendChild(milestoneSymbol(item.shape || "star", cx, milestoneSymbolCenter(item, top, lines, sub), milestoneSize(item), color)); svg.appendChild(g); }
+function drawMilestone(item, lane) { if ((planningData.timeline.compactMode || (planningData.timeline.trimEmptyLanes && lane)) && !itemVisibleInRange(item)) return; const global = !lane, lines = milestoneLines(item, global ? "title" : "label", global ? undefined : "title"), sub = milestoneLines(item, "sub"), color = resolveColor(item.color, resolveColor("@text")), top = milestoneTop(item, lane), cx = x(resolvedDate(item, "date")), g = group(global ? "global-milestone" : "lane-milestone", item, lane, cx); textLines(g, lines, cx, top, "milestone-label", 14, color); if (sub.length) textLines(g, sub, cx, top + lines.length * 14 + 1, "milestone-sub", 12, color); g.appendChild(milestoneSymbol(item.shape || "star", cx, milestoneSymbolCenter(item, top, lines, sub), milestoneSize(item), color)); svg.appendChild(g); }
 function milestoneLineDasharray(style) { return style === "dashed" ? "8 5" : style === "dotted" ? "2 4" : null; }
 function drawMilestoneVerticalLine(item) {
   if (!item.showVerticalLine) return;
@@ -596,7 +639,7 @@ function drawOverlayHandle(overlay) { const { x1, width } = overlayBounds(overla
 function drawOverlay(overlay) { const { x1, width } = overlayBounds(overlay), g = el("g", { class: "planning-item" + (selected("overlay", overlay.id) ? " selected" : "") }); g.appendChild(el("rect", { x: x1, y: geometry.timelineTop, width, height: geometry.timelineBottom - geometry.timelineTop, fill: resolveColor(overlay.color, resolveColor("@neutral")), opacity: overlay.opacity, class: "planning-shape", "pointer-events": "none" })); svg.appendChild(g); }
 function dateAnchor(entry, key) {
   const { item, lane } = entry, date = resolvedDate(item, key);
-  if (!date || (planningData.timeline.compactMode && !itemVisibleInRange(item))) return null;
+  if (!date || (periodLayoutEnabled() && !itemVisibleInRange(item))) return null;
   const xPos = x(clampDate(date));
   if (key === "date") {
     const global = !lane, lines = milestoneLines(item, global ? "title" : "label", global ? undefined : "title"), sub = milestoneLines(item, "sub");
@@ -665,7 +708,7 @@ function renderStackingGroup(items, milestones, lane = null) {
 }
 function gridDasharray(style) { return style === "dashed" ? "8 5" : style === "dotted" ? "2 4" : null; }
 function drawTimelineGrid(level, grid) { if (!level) return; periods(level).slice(0, -1).forEach(v => { const date = v[1] < planningData.range.start ? planningData.range.start : v[1]; svg.appendChild(el("line", { x1: x(date), y1: geometry.timelineTop, x2: x(date), y2: geometry.timelineBottom, stroke: resolveColor(grid.color), "stroke-width": grid.width, "stroke-dasharray": gridDasharray(grid.style), "stroke-linecap": grid.style === "dotted" ? "round" : null, "pointer-events": "none" })); }); }
-function render() { setup(); svg.innerHTML = ""; const timeline = planningData.timeline, exportOpacity = Math.max(0, Math.min(1, Number(timeline.backgroundOpacity) || 0)); svg.appendChild(el("rect", { x: 0, y: 0, width: geometry.W, height: geometry.H, fill: resolveColor(timeline.backgroundColor, resolveColor("@surface")), "fill-opacity": 1, "data-export-opacity": exportOpacity, class: "planning-background", "pointer-events": "none" })); let y = geometry.top; visibleLevels().forEach((level, n) => { const p = periods(level.key); p.slice(0, -1).forEach((v, i) => { const x1 = x(v[1]), x2 = x(p[i + 1][1]); svg.append(el("rect", { x: x1, y, width: x2 - x1, height: level.height, fill: resolveColor(themeAppearance(level.altRole && i % 2 ? level.altRole : level.fillRole)), stroke: "#fff" }), el("text", { x: (x1 + x2) / 2, y: y + level.height / 2, "dominant-baseline": "middle", "text-anchor": "middle", class: level.cls }, v[0])); }); y += level.height + (n < visibleLevels().length - 1 ? 2 : 0); }); drawTimelineGrid(secondaryGridTimelineLevel.disabled ? "" : secondaryGridTimelineLevel.value, planningData.theme.grid.secondary); drawTimelineGrid(primaryGridTimelineLevel.disabled ? "" : primaryGridTimelineLevel.value, planningData.theme.grid.primary); planningData.overlays.forEach(drawOverlayHandle); renderStackingGroup(planningData.milestones, planningData.items); planningData.lanes.forEach(lane => { const bg = lane.backgroundColor ?? lane.background; if (bg && (lane.backgroundOpacity ?? 1) > 0) svg.appendChild(el("rect", { x: geometry.left, y: lane._y, width: geometry.timelineW, height: lane._h, fill: resolveColor(bg), "fill-opacity": lane.backgroundOpacity ?? 1, "pointer-events": "none" })); if (lane.key !== "change") { const g = group("lane", lane, null, 43); g.appendChild(el("rect", { x: 14, y: lane._y, width: 58, height: lane._h, fill: resolveColor(lane.labelColor, resolveColor("@primaryStrong")), class: "planning-shape" })); const label = el("g", { transform: `translate(44 ${lane._y + lane._h / 2}) rotate(-90)` }); textLines(label, lane.label, 0, -4, "lane-label", 18); g.appendChild(label); svg.appendChild(g); } renderStackingGroup(lane.items, lane.milestones, lane); }); planningData.overlays.forEach(drawOverlay); planningData.milestones.forEach(drawMilestoneVerticalLine); planningData.lanes.forEach(lane => lane.milestones.forEach(drawMilestoneVerticalLine)); const showSelectedDateDependencies = Boolean(selection && ["phase", "task", "global-milestone", "lane-milestone"].includes(selection.type) && editorSectionOpen("Informations")); if (dateDependenciesToggle.checked || showSelectedDateDependencies) drawDateDependencies(!dateDependenciesToggle.checked); const today = dateIso(); if (todayLineToggle.checked && today >= planningData.range.start && today <= planningData.range.end) svg.appendChild(el("line", { x1: x(today), y1: 0, x2: x(today), y2: geometry.H, stroke: resolveColor(themeAppearance("todayLine")), "stroke-width": 2, "pointer-events": "none" })); }
+function render() { setup(); svg.innerHTML = ""; const timeline = planningData.timeline, exportOpacity = Math.max(0, Math.min(1, Number(timeline.backgroundOpacity) || 0)); svg.appendChild(el("rect", { x: 0, y: 0, width: geometry.W, height: geometry.H, fill: resolveColor(timeline.backgroundColor, resolveColor("@surface")), "fill-opacity": 1, "data-export-opacity": exportOpacity, class: "planning-background", "pointer-events": "none" })); let y = geometry.top; visibleLevels().forEach((level, n) => { const p = periods(level.key); p.slice(0, -1).forEach((v, i) => { const x1 = x(v[1]), x2 = x(p[i + 1][1]); svg.append(el("rect", { x: x1, y, width: x2 - x1, height: level.height, fill: resolveColor(themeAppearance(level.altRole && i % 2 ? level.altRole : level.fillRole)), stroke: "#fff" }), el("text", { x: (x1 + x2) / 2, y: y + level.height / 2, "dominant-baseline": "middle", "text-anchor": "middle", class: level.cls }, v[0])); }); y += level.height + (n < visibleLevels().length - 1 ? 2 : 0); }); drawTimelineGrid(secondaryGridTimelineLevel.disabled ? "" : secondaryGridTimelineLevel.value, planningData.theme.grid.secondary); drawTimelineGrid(primaryGridTimelineLevel.disabled ? "" : primaryGridTimelineLevel.value, planningData.theme.grid.primary); planningData.overlays.forEach(drawOverlayHandle); renderStackingGroup(planningData.milestones, planningData.items); planningData.lanes.forEach(lane => { if (lane._hiddenByCompact) return; const bg = lane.backgroundColor ?? lane.background; if (bg && (lane.backgroundOpacity ?? 1) > 0) svg.appendChild(el("rect", { x: geometry.left, y: lane._y, width: geometry.timelineW, height: lane._h, fill: resolveColor(bg), "fill-opacity": lane.backgroundOpacity ?? 1, "pointer-events": "none" })); if (lane.key !== "change") { const g = group("lane", lane, null, 43); g.appendChild(el("rect", { x: 14, y: lane._y, width: 58, height: lane._h, fill: resolveColor(lane.labelColor, resolveColor("@primaryStrong")), class: "planning-shape" })); const label = el("g", { transform: `translate(44 ${lane._y + lane._h / 2}) rotate(-90)` }); textLines(label, lane.label, 0, -4, "lane-label", 18); g.appendChild(label); svg.appendChild(g); } renderStackingGroup(lane.items, lane.milestones, lane); }); planningData.overlays.forEach(drawOverlay); planningData.milestones.forEach(drawMilestoneVerticalLine); planningData.lanes.filter(lane => !lane._hiddenByCompact).forEach(lane => lane.milestones.forEach(drawMilestoneVerticalLine)); const showSelectedDateDependencies = Boolean(selection && ["phase", "task", "global-milestone", "lane-milestone"].includes(selection.type) && editorSectionOpen("Informations")); if (dateDependenciesToggle.checked || showSelectedDateDependencies) drawDateDependencies(!dateDependenciesToggle.checked); const today = dateIso(); if (todayLineToggle.checked && today >= planningData.range.start && today <= planningData.range.end) svg.appendChild(el("line", { x1: x(today), y1: 0, x2: x(today), y2: geometry.H, stroke: resolveColor(themeAppearance("todayLine")), "stroke-width": 2, "pointer-events": "none" })); }
 
 function current() { if (!selection) return null; if (selection.type === "global-milestone") return { object: planningData.milestones.find(v => v.id === selection.itemId) }; if (selection.type === "overlay") return { object: planningData.overlays.find(v => v.id === selection.itemId) }; if (["phase", "task"].includes(selection.type) && !selection.laneId) return { object: planningData.items.find(v => v.id === selection.itemId), lane: null }; const lane = planningData.lanes.find(v => v.id === (selection.laneId || selection.itemId)); if (!lane) return null; if (selection.type === "lane") return { object: lane, lane }; return { object: (selection.type === "lane-milestone" ? lane.milestones : lane.items).find(v => v.id === selection.itemId), lane }; }
 function color(v) { return resolveColor(v); }
@@ -929,6 +972,7 @@ function normalise(data) {
   if (typeof data.timeline.showTodayLine !== "boolean") data.timeline.showTodayLine = defaults.showTodayLine;
   if (typeof data.timeline.showDateDependencies !== "boolean") data.timeline.showDateDependencies = defaults.showDateDependencies;
   if (typeof data.timeline.compactMode !== "boolean") data.timeline.compactMode = defaults.compactMode;
+  if (typeof data.timeline.trimEmptyLanes !== "boolean") data.timeline.trimEmptyLanes = defaults.trimEmptyLanes;
   if (!/^#[0-9a-f]{6}$/i.test(data.timeline.backgroundColor || "") && !/^@[A-Za-z][A-Za-z0-9]*$/.test(data.timeline.backgroundColor || "")) data.timeline.backgroundColor = defaults.backgroundColor;
   data.timeline.backgroundOpacity = Math.max(0, Math.min(1, Number.isFinite(Number(data.timeline.backgroundOpacity)) ? Number(data.timeline.backgroundOpacity) : defaults.backgroundOpacity));
   if (!data.itemTypes.task) data.itemTypes.task = clone(emptyPlanning().itemTypes.task);
@@ -1273,14 +1317,17 @@ function renderTimelineEditor() {
   const startRow = document.createElement("div"); startRow.className = "timeline-date-row"; startRow.append(start, earliest);
   const endRow = document.createElement("div"); endRow.className = "timeline-date-row"; endRow.append(end, latest);
   dates.append(startRow, endRow);
-  const compact = input("Mode compact", "compactMode", planningData.timeline.compactMode, "checkbox");
-  compact.title = "Réduit les espaces verticaux réservés aux éléments hors de la période affichée.";
-  compact.querySelector("input").onchange = event => {
-    planningData.timeline.compactMode = event.target.checked;
+  const displayMode = planningData.timeline.trimEmptyLanes ? "lanes" : planningData.timeline.compactMode ? "dependencies" : "normal";
+  const compact = input("Affichage vertical", "displayMode", displayMode, "select", [["normal", "Normal"], ["lanes", "Réduire les lanes"], ["dependencies", "Compact avec dépendances"]]);
+  compact.title = "Choisir comment la période affichée agit sur l’espace vertical.";
+  compact.querySelector("select").onchange = event => {
+    planningData.timeline.trimEmptyLanes = event.target.value === "lanes";
+    planningData.timeline.compactMode = event.target.value === "dependencies";
     markTimelineChange();
     render();
+    renderTimelineEditor();
   };
-  const compactNote = document.createElement("p"); compactNote.className = "hint"; compactNote.textContent = "Conserve vos espacements et paddings. Si une référence verticale est hors période, elle est temporairement remplacée par sa référence visible, avec le plus grand décalage de la chaîne. Les positions enregistrées ne sont pas modifiées.";
+  const compactNote = document.createElement("p"); compactNote.className = "hint"; compactNote.textContent = "« Réduire les lanes » retire seulement le vide avant et après le contenu visible et masque les lanes vides. « Compact avec dépendances » conserve le mode actuel : il résout aussi les références verticales hors période. Les positions enregistrées ne sont jamais modifiées.";
   card.append(section("Période", [intro, dates, compact, compactNote]));
   const ratioNote = document.createElement("p"); ratioNote.className = "impact-note"; ratioNote.textContent = "Élargissez ou resserrez le planning tout en l’adaptant à la largeur disponible.";
   card.append(section("Ratio d’affichage", [ratioNote, displayRatioControls()], false));
