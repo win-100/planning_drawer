@@ -1320,8 +1320,9 @@ function renderTimelineEditor() {
   const endRow = document.createElement("div"); endRow.className = "timeline-date-row"; endRow.append(end, latest);
   dates.append(startRow, endRow);
   const displayMode = planningData.timeline.trimEmptyLanes ? "lanes" : planningData.timeline.compactMode ? "dependencies" : "normal";
-  const compact = input("Affichage vertical", "displayMode", displayMode, "select", [["normal", "Normal"], ["lanes", "Réduire les lanes"], ["dependencies", "Compact avec dépendances"]]);
-  compact.title = "Choisir comment la période affichée agit sur l’espace vertical.";
+  const compact = input("Espaces verticaux", "displayMode", displayMode, "select", [["normal", "Conserver tous les espacements"], ["lanes", "Ajuster les lanes au contenu visible"], ["dependencies", "Rapprocher les éléments liés"]]);
+  compact.classList.add("timeline-display-mode");
+  compact.title = "Choisir la façon dont l’espace vertical est utilisé pour la période affichée.";
   compact.querySelector("select").onchange = event => {
     planningData.timeline.trimEmptyLanes = event.target.value === "lanes";
     planningData.timeline.compactMode = event.target.value === "dependencies";
@@ -1329,7 +1330,12 @@ function renderTimelineEditor() {
     render();
     renderTimelineEditor();
   };
-  const compactNote = document.createElement("p"); compactNote.className = "hint"; compactNote.textContent = "« Réduire les lanes » retire seulement le vide avant et après le contenu visible et masque les lanes vides. « Compact avec dépendances » conserve le mode actuel : il résout aussi les références verticales hors période. Les positions enregistrées ne sont jamais modifiées.";
+  const compactNote = document.createElement("p"); compactNote.className = "hint timeline-display-mode-note";
+  compactNote.textContent = displayMode === "normal"
+    ? "Conserve le planning tel qu’il a été organisé, y compris les espaces laissés par les éléments hors période."
+    : displayMode === "lanes"
+      ? "Réduit uniquement le vide au début et à la fin des lanes, et masque celles qui n’ont aucun élément dans la période. Les espacements entre éléments visibles sont conservés."
+      : "Rapproche les éléments dont une référence n’est pas affichée dans la période, afin de limiter les espaces vides tout en conservant leur organisation.";
   card.append(section("Période", [intro, dates, compact, compactNote]));
   const ratioNote = document.createElement("p"); ratioNote.className = "impact-note"; ratioNote.textContent = "Élargissez ou resserrez le planning tout en l’adaptant à la largeur disponible.";
   card.append(section("Ratio d’affichage", [ratioNote, displayRatioControls()], false));

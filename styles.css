@@ -270,6 +270,14 @@ button:hover {
   font-weight: 700;
 }
 
+.editor-section-body .timeline-display-mode {
+  margin: 16px 0 0;
+}
+
+.editor-section-body .timeline-display-mode-note {
+  margin: 0 0 5px 11px;
+}
+
 .hint {
   font-size: 12px;
   color: #687078;
