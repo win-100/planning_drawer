@@ -387,9 +387,11 @@ function prepareWhitespaceTrim(items, milestones, lane) {
   lane._hiddenByCompact = !entries.length;
   const origin = lane === unlanedArea ? 0 : lane.paddingTop ?? 0;
   const first = entries.reduce((current, entry) => !current || entry.top < current.top ? entry : current, null);
+  const hasAbsoluteTopAnchor = first && lane === unlanedArea && entries.some(entry => relativeMode(entry.item) === "absolute" && Math.abs(entry.top - first.top) < .01);
   // In the root area, an absolute first element defines the intentional top
-  // spacing. It must not move merely because earlier objects are out of range.
-  lane._trimOffset = !first || (lane === unlanedArea && relativeMode(first.item) === "absolute") ? 0 : Math.max(0, first.top - origin);
+  // spacing. It must not move merely because an equally high relative element
+  // happens to appear earlier in the saved JSON.
+  lane._trimOffset = !first || hasAbsoluteTopAnchor ? 0 : Math.max(0, first.top - origin);
 }
 function compactReference(item, lane, findReference) {
   const mode = relativeMode(item);
