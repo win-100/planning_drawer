@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Version de build : 1.010 -->
+<!-- Version de build : 1.012 -->
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
@@ -263,6 +263,11 @@ button:hover {
 }
 
 .editor-card .timeline-controls .grid-choice {
+  display: grid;
+  gap: 4px;
+}
+
+.theme-timeline-locale {
   display: grid;
   gap: 4px;
 }
@@ -754,6 +759,9 @@ const dateDependenciesToggle = document.getElementById("toggleDateDependencies")
 const primaryGridTimelineLevel = document.getElementById("primaryGridTimelineLevel");
 const secondaryGridTimelineLevel = document.getElementById("secondaryGridTimelineLevel");
 const timelineLocale = document.getElementById("timelineLocale");
+const timelineLocaleControl = timelineLocale.closest("label");
+timelineLocaleControl.classList.add("theme-timeline-locale");
+timelineLocaleControl.remove();
 const themeButton = document.getElementById("btnTheme");
 const workingDaysButton = document.getElementById("btnWorkingDays");
 // A theme only contains semantic colour roles.  Planning objects may reference
@@ -2282,7 +2290,7 @@ function renderThemeEditor() {
     });
     group.append(heading, controls); groups.appendChild(group);
   });
-  card.append(section("Nuancier", [note, preset, groups], true));
+  card.append(section("Nuancier", [note, preset, groups], false));
   const backgroundColor = colorPicker("Couleur de fond", planningData.timeline.backgroundColor, value => updateTimelineBackground("backgroundColor", value));
   const backgroundOpacity = input("Opacité à l’export (0 à 1)", "backgroundOpacity", planningData.timeline.backgroundOpacity, "number");
   const backgroundOpacityField = backgroundOpacity.querySelector("input"); backgroundOpacityField.min = "0"; backgroundOpacityField.max = "1"; backgroundOpacityField.step = "0.01";
@@ -2316,7 +2324,7 @@ function renderThemeEditor() {
   levelPicker.querySelector("select").onchange = renderTimelineLevelFields;
   renderTimelineLevelFields();
   const timelineNote = document.createElement("p"); timelineNote.className = "hint"; timelineNote.textContent = "Choisissez un niveau pour régler ses couleurs, sa hauteur et sa taille de police.";
-  card.append(section("Frise temporelle", [timelineNote, levelPicker, levelFields], false));
+  card.append(section("Frise temporelle", [timelineLocaleControl, timelineNote, levelPicker, levelFields], false));
   const lineFields = [["todayLine", "Ligne d’aujourd’hui"], ["dependencyIncoming", "Dépendance entrante"], ["dependencyOutgoing", "Dépendance sortante"], ["dependencyNeutral", "Dépendance neutre"]].map(([key, label]) => colorPicker(label, themeAppearance(key), value => updateThemeAppearance(key, value)));
   const lineNote = document.createElement("p"); lineNote.className = "hint"; lineNote.textContent = "Choisissez une couleur du nuancier ou une couleur personnalisée pour les lignes et les flèches.";
   card.append(section("Lignes et flèches", [lineNote, fieldGrid(...lineFields)], false));

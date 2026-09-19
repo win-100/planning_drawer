@@ -258,6 +258,11 @@ button:hover {
   gap: 4px;
 }
 
+.theme-timeline-locale {
+  display: grid;
+  gap: 4px;
+}
+
 .timeline-dates {
   display: grid;
   gap: 7px;
