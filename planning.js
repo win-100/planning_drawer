@@ -340,7 +340,7 @@ function naturalItemTop(item, lane, visiting = new Set()) {
   return referenceTop + raw;
 }
 function relativeYOffsetForTop(item, reference, top) {
-  const referenceTop = itemTop(reference.item, reference.lane);
+  const referenceTop = naturalItemTop(reference.item, reference.lane);
   if (relativeMode(item) === "below") return top - referenceTop - itemHeight(reference.item);
   if (relativeMode(item) === "center") return top - referenceTop - (itemHeight(reference.item) - itemHeight(item)) / 2;
   return top - referenceTop;
@@ -368,38 +368,66 @@ function itemVisibleInRange(item) {
   const start = resolvedDate(item, "start"), end = resolvedDate(item, "end");
   return Boolean(start && end && end > planningData.range.start && start < planningData.range.end);
 }
-function buildCompactPositions(items, milestones, lane) {
-  const entries = [
-    ...items.filter(itemVisibleInRange).map((item, index) => ({ item, index, top: naturalItemTop(item, lane) - lane._y, height: itemHeight(item) })),
-    ...milestones.filter(itemVisibleInRange).map((item, index) => ({ item, index: items.length + index, top: naturalMilestoneTop(item, lane === unlanedArea ? null : lane) - lane._y, height: milestoneHeight(item) }))
-  ].sort((a, b) => a.top - b.top || a.index - b.index);
-  const positions = new Map();
-  let rawStart = 0, rawEnd = 0, compactStart = lane === unlanedArea ? 0 : lane.paddingTop ?? 0, compactEnd = compactStart;
-  entries.forEach((entry, index) => {
-    if (!index || entry.top > rawEnd) {
-      rawStart = entry.top;
-      compactStart = index ? compactEnd : (lane === unlanedArea ? 0 : lane.paddingTop ?? 0);
-      rawEnd = entry.top + entry.height;
-    } else {
-      rawEnd = Math.max(rawEnd, entry.top + entry.height);
+function compactReference(item, lane, findReference) {
+  const mode = relativeMode(item);
+  if (mode === "absolute" || !item.relativeTo) return null;
+  let reference = findReference(item.relativeTo), offset = Number(item.yOffset) || 0;
+  const firstHiddenReference = reference;
+  const seen = new Set([item.id]);
+  while (reference && !itemVisibleInRange(reference.item)) {
+    const hidden = reference.item;
+    if (seen.has(hidden.id) || (reference.lane || null) !== (lane || null)) return null;
+    seen.add(hidden.id);
+    // The missing link is replaced by its own link. Keeping the greatest
+    // offset prevents the compact view from making a deliberate separation
+    // tighter than either of the two original constraints.
+    offset = Math.max(offset, Number(hidden.yOffset) || 0);
+    // If every ancestor is outside the period, anchor the first omitted
+    // reference at the lane origin. Its height is retained so that its visible
+    // children (for example a centered item and one below it) stay ordered.
+    if (relativeMode(hidden) === "absolute" || !hidden.relativeTo) {
+      // A direct reference to a terminal hidden item has no visible sibling to
+      // organize, so its own height would only recreate empty space. Keep a
+      // virtual height only after at least one omitted dependency was crossed.
+      const virtualHeight = firstHiddenReference.item.id === hidden.id ? 0 : (isMilestoneEntry(firstHiddenReference) ? milestoneHeight(firstHiddenReference.item) : itemHeight(firstHiddenReference.item));
+      return { reference: null, offset, mode, virtualHeight };
     }
-    const top = compactStart + entry.top - rawStart;
-    compactEnd = Math.max(compactEnd, top + entry.height);
-    positions.set(entry.item.id, lane._y + top);
-  });
-  lane._compactTops = positions;
+    reference = findReference(hidden.relativeTo);
+  }
+  return reference && (reference.lane || null) === (lane || null) ? { reference, offset, mode } : null;
 }
-function itemTop(item, lane, visiting) {
-  if (planningData.timeline.compactMode && lane?._compactTops?.has(item.id)) return lane._compactTops.get(item.id);
-  return naturalItemTop(item, lane, visiting);
+function relativeTop(item, lane, relation, visiting, milestone) {
+  const { reference, offset, mode } = relation;
+  if (!reference) {
+    const container = lane || unlanedArea;
+    const base = lane ? lane._y + (lane.paddingTop ?? 0) : container._y;
+    const referenceHeight = relation.virtualHeight || 0;
+    const height = milestone ? milestoneHeight(item) : itemHeight(item);
+    if (mode === "below") return base + referenceHeight + offset;
+    if (mode === "center") return base + (referenceHeight - height) / 2 + offset;
+    return base + offset;
+  }
+  const next = new Set(visiting); next.add(item.id);
+  const referenceIsMilestone = isMilestoneEntry(reference);
+  const referenceTop = referenceIsMilestone ? milestoneTop(reference.item, reference.lane, next) : itemTop(reference.item, reference.lane, next);
+  const referenceHeight = referenceIsMilestone ? milestoneHeight(reference.item) : itemHeight(reference.item);
+  const height = milestone ? milestoneHeight(item) : itemHeight(item);
+  if (mode === "below") return referenceTop + referenceHeight + offset;
+  if (mode === "center") return referenceTop + (referenceHeight - height) / 2 + offset;
+  return referenceTop + offset;
 }
-function milestoneTop(item, lane, visiting) {
-  const container = lane || unlanedArea;
-  if (planningData.timeline.compactMode && container._compactTops?.has(item.id)) return container._compactTops.get(item.id);
-  return naturalMilestoneTop(item, lane, visiting);
+function itemTop(item, lane, visiting = new Set()) {
+  if (!planningData.timeline.compactMode || visiting.has(item.id)) return naturalItemTop(item, lane, visiting);
+  const relation = compactReference(item, lane, itemById);
+  return relation ? relativeTop(item, lane, relation, visiting, false) : naturalItemTop(item, lane, visiting);
+}
+function milestoneTop(item, lane, visiting = new Set()) {
+  if (!planningData.timeline.compactMode || visiting.has(item.id)) return naturalMilestoneTop(item, lane, visiting);
+  const relation = compactReference(item, lane, positionReferenceById);
+  return relation ? relativeTop(item, lane, relation, visiting, true) : naturalMilestoneTop(item, lane, visiting);
 }
 function relativeYOffsetForMilestoneTop(item, reference, top) {
-  const referenceTop = isMilestoneEntry(reference) ? milestoneTop(reference.item, reference.lane) : itemTop(reference.item, reference.lane);
+  const referenceTop = isMilestoneEntry(reference) ? naturalMilestoneTop(reference.item, reference.lane) : naturalItemTop(reference.item, reference.lane);
   const referenceHeight = isMilestoneEntry(reference) ? milestoneHeight(reference.item) : itemHeight(reference.item);
   if (relativeMode(item) === "below") return top - referenceTop - referenceHeight;
   if (relativeMode(item) === "center") return top - referenceTop - (referenceHeight - milestoneHeight(item)) / 2;
@@ -411,8 +439,7 @@ function laneContentHeight(items, milestones, lane, milestoneTopInset = 0) {
   const displayedMilestones = planningData.timeline.compactMode ? milestones.filter(itemVisibleInRange) : milestones;
   const bottoms = [0, ...displayedItems.map(item => itemTop(item, lane) - lane._y + itemHeight(item)), ...displayedMilestones.map(item => milestoneTop(item, milestoneLane) - lane._y + milestoneHeight(item))];
   if (lane === unlanedArea) return Math.max(...bottoms) + (planningData.layout.lanePaddingBottom ?? 10);
-  const minimum = planningData.timeline.compactMode ? 0 : Number(lane.minHeight) || 0;
-  return Math.max(minimum, Math.max(...bottoms) + (lane.paddingBottom ?? 0));
+  return Math.max(Number(lane.minHeight) || 0, Math.max(...bottoms) + (lane.paddingBottom ?? 0));
 }
 function visibleLevels() { return timelineLevels.filter(v => v.toggle.checked).map(v => ({ ...v, height: planningData.layout[`${v.key}Height`] ?? v.h })); }
 function setup() { const c = planningData.layout, levels = visibleLevels(), header = levels.reduce((n, v, i) => n + v.height + (i ? 2 : 0), 0), width = c.width ?? 1500, left = c.left ?? 86, right = c.right ?? 16, start = new Date(`${planningData.range.start}T00:00:00`), end = new Date(`${planningData.range.end}T00:00:00`); svg.style.setProperty("--display-width", `${Math.min(100, Math.max(1, Math.round(width / 15)))}%`); x = date => left + ((new Date(`${date}T00:00:00`) - start) / (end - start)) * (width - left - right);
@@ -433,18 +460,9 @@ function setup() { const c = planningData.layout, levels = visibleLevels(), head
     planningData.lanes.forEach(lane => { lane._y = nextY; lane._h = laneContentHeight(lane.items, lane.milestones, lane); nextY += lane._h + (c.laneGap ?? 5); });
     return nextY;
   };
-  // Start from the natural coordinates, then rebuild the compact mapping on
-  // every pass. This keeps relative chains stable while lanes move upward.
-  delete unlanedArea._compactTops;
-  planningData.lanes.forEach(lane => delete lane._compactTops);
   let y = arrange();
-  for (let pass = 0; pass < 4; pass++) {
-    if (planningData.timeline.compactMode) {
-      buildCompactPositions(planningData.items, planningData.milestones, unlanedArea);
-      planningData.lanes.forEach(lane => buildCompactPositions(lane.items, lane.milestones, lane));
-    }
-    y = arrange();
-  }
+  // A few passes let references work across lanes whose height is itself dynamic.
+  for (let pass = 0; pass < 4; pass++) y = arrange();
   geometry = { W: width, H: Math.ceil(y + 15), left, timelineW: width - left - right, top: c.topMonths ?? 8, header, timelineTop: Math.max(c.timelineTop ?? 58, (c.topMonths ?? 8) + header), timelineBottom: y - (c.laneGap ?? 5) }; svg.setAttribute("viewBox", `0 0 ${geometry.W} ${geometry.H}`); }
 function dateIso(date = new Date()) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`; }
 function week(date) { const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())); d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7)); return Math.ceil(((d - new Date(Date.UTC(d.getUTCFullYear(), 0, 1))) / 86400000 + 1) / 7); }
@@ -530,7 +548,7 @@ function group(type, object, lane, center) {
       if (source) {
         // Capture the on-screen position before adding the reference, then use
         // the corresponding relative offset so choosing a reference is stable.
-        const currentTop = selection?.type?.includes("milestone") ? milestoneTop(source.item, source.lane) : itemTop(source.item, source.lane);
+        const currentTop = selection?.type?.includes("milestone") ? naturalMilestoneTop(source.item, source.lane) : naturalItemTop(source.item, source.lane);
         source.item.relativeTo = object.id;
         source.item.yOffset = selection?.type?.includes("milestone") ? relativeYOffsetForMilestoneTop(source.item, { item: object, lane }, currentTop) : relativeYOffsetForTop(source.item, { item: object, lane }, currentTop);
         isDirty = true; importedVersion = false; status();
@@ -558,7 +576,7 @@ function milestoneSymbol(shape, cx, cy, size, color) {
   return el("path", { ...attrs, d: `M ${points.join(" L ")} Z` });
 }
 function milestoneSymbolCenter(item, top, lines, sub) { const symbolTop = top + lines.length * 14 + sub.length * 12 - (sub.length ? 7 : 10); return symbolTop + milestoneSize(item) / 2; }
-function drawMilestone(item, lane) { if (!itemVisibleInRange(item)) return; const global = !lane, lines = milestoneLines(item, global ? "title" : "label", global ? undefined : "title"), sub = milestoneLines(item, "sub"), color = resolveColor(item.color, resolveColor("@text")), top = milestoneTop(item, lane), cx = x(resolvedDate(item, "date")), g = group(global ? "global-milestone" : "lane-milestone", item, lane, cx); textLines(g, lines, cx, top, "milestone-label", 14, color); if (sub.length) textLines(g, sub, cx, top + lines.length * 14 + 1, "milestone-sub", 12, color); g.appendChild(milestoneSymbol(item.shape || "star", cx, milestoneSymbolCenter(item, top, lines, sub), milestoneSize(item), color)); svg.appendChild(g); }
+function drawMilestone(item, lane) { if (planningData.timeline.compactMode && !itemVisibleInRange(item)) return; const global = !lane, lines = milestoneLines(item, global ? "title" : "label", global ? undefined : "title"), sub = milestoneLines(item, "sub"), color = resolveColor(item.color, resolveColor("@text")), top = milestoneTop(item, lane), cx = x(resolvedDate(item, "date")), g = group(global ? "global-milestone" : "lane-milestone", item, lane, cx); textLines(g, lines, cx, top, "milestone-label", 14, color); if (sub.length) textLines(g, sub, cx, top + lines.length * 14 + 1, "milestone-sub", 12, color); g.appendChild(milestoneSymbol(item.shape || "star", cx, milestoneSymbolCenter(item, top, lines, sub), milestoneSize(item), color)); svg.appendChild(g); }
 function milestoneLineDasharray(style) { return style === "dashed" ? "8 5" : style === "dotted" ? "2 4" : null; }
 function drawMilestoneVerticalLine(item) {
   if (!item.showVerticalLine) return;
@@ -578,7 +596,7 @@ function drawOverlayHandle(overlay) { const { x1, width } = overlayBounds(overla
 function drawOverlay(overlay) { const { x1, width } = overlayBounds(overlay), g = el("g", { class: "planning-item" + (selected("overlay", overlay.id) ? " selected" : "") }); g.appendChild(el("rect", { x: x1, y: geometry.timelineTop, width, height: geometry.timelineBottom - geometry.timelineTop, fill: resolveColor(overlay.color, resolveColor("@neutral")), opacity: overlay.opacity, class: "planning-shape", "pointer-events": "none" })); svg.appendChild(g); }
 function dateAnchor(entry, key) {
   const { item, lane } = entry, date = resolvedDate(item, key);
-  if (!date || !itemVisibleInRange(item)) return null;
+  if (!date || (planningData.timeline.compactMode && !itemVisibleInRange(item))) return null;
   const xPos = x(clampDate(date));
   if (key === "date") {
     const global = !lane, lines = milestoneLines(item, global ? "title" : "label", global ? undefined : "title"), sub = milestoneLines(item, "sub");
@@ -1255,7 +1273,15 @@ function renderTimelineEditor() {
   const startRow = document.createElement("div"); startRow.className = "timeline-date-row"; startRow.append(start, earliest);
   const endRow = document.createElement("div"); endRow.className = "timeline-date-row"; endRow.append(end, latest);
   dates.append(startRow, endRow);
-  card.append(section("Période", [intro, dates]));
+  const compact = input("Mode compact", "compactMode", planningData.timeline.compactMode, "checkbox");
+  compact.title = "Réduit les espaces verticaux réservés aux éléments hors de la période affichée.";
+  compact.querySelector("input").onchange = event => {
+    planningData.timeline.compactMode = event.target.checked;
+    markTimelineChange();
+    render();
+  };
+  const compactNote = document.createElement("p"); compactNote.className = "hint"; compactNote.textContent = "Conserve vos espacements et paddings. Si une référence verticale est hors période, elle est temporairement remplacée par sa référence visible, avec le plus grand décalage de la chaîne. Les positions enregistrées ne sont pas modifiées.";
+  card.append(section("Période", [intro, dates, compact, compactNote]));
   const ratioNote = document.createElement("p"); ratioNote.className = "impact-note"; ratioNote.textContent = "Élargissez ou resserrez le planning tout en l’adaptant à la largeur disponible.";
   card.append(section("Ratio d’affichage", [ratioNote, displayRatioControls()], false));
   card.appendChild(section("Ligne d’aujourd’hui", [todayControl], false));
