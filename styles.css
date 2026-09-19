@@ -517,6 +517,14 @@ button:hover {
 .planning-item.reference-candidate .planning-shape { stroke: #0f766e !important; stroke-width: 2 !important; }
 .relative-reference-field { display: flex; align-items: center; gap: 6px; min-height: 31px; padding: 5px 6px 5px 8px; border: 1px solid #dbe4e5; border-radius: 6px; background: #fff; }
 .relative-reference-label { min-width: 0; flex: 1; overflow: hidden; color: #38515c; font-size: 12px; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+.days-off-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; font-size: 12px; }
+.days-off-table th { padding: 0 4px 5px; color: #536168; font-size: 11px; text-align: left; }
+.days-off-table td { padding: 3px 4px; vertical-align: middle; }
+.days-off-table input { box-sizing: border-box; width: 100%; min-width: 0; padding: 6px; border: 1px solid #cbd4d6; border-radius: 5px; font: inherit; }
+.days-off-table td:first-child { width: 116px; }
+.days-off-table td:last-child { width: 30px; padding-right: 0; }
+.days-off-table .delete-object { width: 27px; min-width: 27px; height: 29px; padding: 0; }
+.days-off-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .pick-reference { display: inline-grid; width: 24px; height: 24px; flex: 0 0 24px; place-items: center; padding: 0; border-color: #b7ddd9; border-radius: 5px; background: #f2fbfa; color: #20736d; font-size: 15px; line-height: 1; }
 .pick-reference:hover { background: #dff4f2; }
 

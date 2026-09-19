@@ -15,6 +15,7 @@ const primaryGridTimelineLevel = document.getElementById("primaryGridTimelineLev
 const secondaryGridTimelineLevel = document.getElementById("secondaryGridTimelineLevel");
 const timelineLocale = document.getElementById("timelineLocale");
 const themeButton = document.getElementById("btnTheme");
+const workingDaysButton = document.getElementById("btnWorkingDays");
 // A theme only contains semantic colour roles.  Planning objects may reference
 // one with "@primary" etc.; an ordinary #RRGGBB value is deliberately kept as
 // an element-level override.
@@ -48,6 +49,12 @@ const defaultTimelineSettings = () => ({
   backgroundColor: "@surface",
   backgroundOpacity: 0
 });
+const defaultWorkCalendar = () => ({
+  workingDays: [1, 2, 3, 4, 5],
+  daysOff: [],
+  weeklyDaysOffDisplay: { mode: "none", color: "@neutral", opacity: 0.18 },
+  daysOffDisplay: { mode: "none", color: "@accent", opacity: 0.22 }
+});
 const currentPlanningName = document.getElementById("currentPlanningName");
 const renamePlanButton = document.getElementById("btnRenamePlan");
 const loadButton = document.getElementById("btnLoad");
@@ -65,7 +72,7 @@ function emptyPlanning() {
   return {
     range: { start: `${year}-01-01`, end: `${year}-12-31` },
     layout: { width: 1500, left: 86, right: 16, topMonths: 8, monthHeight: 40, timelineTop: 58, lanesTop: 160, laneGap: 5, lanePaddingBottom: 10, defaultItemHeight: 30 },
-    monthLocale: "fr-FR", items: [], milestones: [], lanes: [], overlays: [], timeline: defaultTimelineSettings(),
+    monthLocale: "fr-FR", items: [], milestones: [], lanes: [], overlays: [], timeline: defaultTimelineSettings(), workCalendar: defaultWorkCalendar(),
     theme: { preset: "ocean", colors: clone(THEME_PRESETS.ocean.colors), appearance: clone(DEFAULT_THEME_APPEARANCE) },
     itemTypes: { task: { fill: "@surface", stroke: "@primary", textColor: "@text", strokeWidth: 1.4, shape: "chevron", h: 30, textClass: "task-label" } }
   };
@@ -85,6 +92,13 @@ function newId(prefix) { return `${prefix}-${Date.now().toString(36)}-${Math.ran
 function clampDate(value) { return value < planningData.range.start ? planningData.range.start : value > planningData.range.end ? planningData.range.end : value; }
 function defaultDate() { return clampDate(dateIso()); }
 function dateAtX(localX) {
+  if (hiddenWeeklyDays()) {
+    const ratio = Math.max(0, Math.min(1, (localX - geometry.left) / geometry.timelineW));
+    const target = timelineCoordinate(planningData.range.start) + ratio * Math.max(1, timelineCoordinate(planningData.range.end) - timelineCoordinate(planningData.range.start));
+    let cursor = planningData.range.start, closest = cursor;
+    while (cursor <= planningData.range.end) { if (!weeklyDayOff(cursor) && timelineCoordinate(cursor) <= target) closest = cursor; cursor = dateIso(new Date(new Date(`${cursor}T12:00:00`).getTime() + 86400000)); }
+    return closest;
+  }
   const rangeStart = new Date(`${planningData.range.start}T12:00:00`);
   const rangeEnd = new Date(`${planningData.range.end}T12:00:00`);
   const ratio = Math.max(0, Math.min(1, (localX - geometry.left) / geometry.timelineW));
@@ -479,7 +493,7 @@ function laneContentHeight(items, milestones, lane, milestoneTopInset = 0) {
   return Math.max(Number(lane.minHeight) || 0, Math.max(...bottoms) + (lane.paddingBottom ?? 0));
 }
 function visibleLevels() { return timelineLevels.filter(v => v.toggle.checked).map(v => ({ ...v, height: planningData.layout[`${v.key}Height`] ?? v.h })); }
-function setup() { const c = planningData.layout, levels = visibleLevels(), header = levels.reduce((n, v, i) => n + v.height + (i ? 2 : 0), 0), width = c.width ?? 1500, left = c.left ?? 86, right = c.right ?? 16, start = new Date(`${planningData.range.start}T00:00:00`), end = new Date(`${planningData.range.end}T00:00:00`); svg.style.setProperty("--display-width", `${Math.min(100, Math.max(1, Math.round(width / 15)))}%`); x = date => left + ((new Date(`${date}T00:00:00`) - start) / (end - start)) * (width - left - right);
+function setup() { const c = planningData.layout, levels = visibleLevels(), header = levels.reduce((n, v, i) => n + v.height + (i ? 2 : 0), 0), width = c.width ?? 1500, left = c.left ?? 86, right = c.right ?? 16, start = new Date(`${planningData.range.start}T00:00:00`), end = new Date(`${planningData.range.end}T00:00:00`); svg.style.setProperty("--display-width", `${Math.min(100, Math.max(1, Math.round(width / 15)))}%`); const startCoordinate = timelineCoordinate(planningData.range.start), endCoordinate = timelineCoordinate(planningData.range.end); x = date => left + ((timelineCoordinate(date) - startCoordinate) / Math.max(1, endCoordinate - startCoordinate)) * (width - left - right);
   // Unassigned items use the same vertical positioning model as lane items:
   // start just below the timeline, then apply their yOffset.
   unlanedArea._y = Math.max((c.timelineTop ?? 58), (c.topMonths ?? 8) + header) + (c.laneGap ?? 5);
@@ -511,6 +525,16 @@ function setup() { const c = planningData.layout, levels = visibleLevels(), head
   for (let pass = 0; pass < 4; pass++) y = arrange();
   geometry = { W: width, H: Math.ceil(y + 15), left, timelineW: width - left - right, top: c.topMonths ?? 8, header, timelineTop: Math.max(c.timelineTop ?? 58, (c.topMonths ?? 8) + header), timelineBottom: y - (c.laneGap ?? 5) }; svg.setAttribute("viewBox", `0 0 ${geometry.W} ${geometry.H}`); }
 function dateIso(date = new Date()) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`; }
+function weekday(date) { return new Date(`${date}T12:00:00`).getDay(); }
+function weeklyDayOff(date) { return !planningData.workCalendar.workingDays.includes(weekday(date)); }
+function hiddenWeeklyDays() { return planningData.workCalendar.weeklyDaysOffDisplay.mode === "hide"; }
+function timelineCoordinate(date) {
+  const target = date < planningData.range.start ? planningData.range.start : date > planningData.range.end ? planningData.range.end : date;
+  if (!hiddenWeeklyDays()) return (new Date(`${target}T12:00:00`) - new Date(`${planningData.range.start}T12:00:00`)) / 86400000;
+  let count = 0, cursor = planningData.range.start;
+  while (cursor < target) { if (!weeklyDayOff(cursor)) count++; cursor = dateIso(new Date(new Date(`${cursor}T12:00:00`).getTime() + 86400000)); }
+  return count;
+}
 function week(date) { const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())); d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7)); return Math.ceil(((d - new Date(Date.UTC(d.getUTCFullYear(), 0, 1))) / 86400000 + 1) / 7); }
 function timelineLocaleValue() { return planningData.monthLocale || "fr-FR"; }
 function quarterLabel(date) { const language = new Intl.Locale(timelineLocaleValue()).language; return `${language === "fr" ? "T" : "Q"}${Math.floor(date.getMonth() / 3) + 1}`; }
@@ -711,7 +735,21 @@ function renderStackingGroup(items, milestones, lane = null) {
 }
 function gridDasharray(style) { return style === "dashed" ? "8 5" : style === "dotted" ? "2 4" : null; }
 function drawTimelineGrid(level, grid) { if (!level) return; periods(level).slice(0, -1).forEach(v => { const date = v[1] < planningData.range.start ? planningData.range.start : v[1]; svg.appendChild(el("line", { x1: x(date), y1: geometry.timelineTop, x2: x(date), y2: geometry.timelineBottom, stroke: resolveColor(grid.color), "stroke-width": grid.width, "stroke-dasharray": gridDasharray(grid.style), "stroke-linecap": grid.style === "dotted" ? "round" : null, "pointer-events": "none" })); }); }
-function render() { setup(); svg.innerHTML = ""; const timeline = planningData.timeline, exportOpacity = Math.max(0, Math.min(1, Number(timeline.backgroundOpacity) || 0)); svg.appendChild(el("rect", { x: 0, y: 0, width: geometry.W, height: geometry.H, fill: resolveColor(timeline.backgroundColor, resolveColor("@surface")), "fill-opacity": 1, "data-export-opacity": exportOpacity, class: "planning-background", "pointer-events": "none" })); let y = geometry.top; visibleLevels().forEach((level, n) => { const p = periods(level.key); p.slice(0, -1).forEach((v, i) => { const x1 = x(v[1]), x2 = x(p[i + 1][1]); svg.append(el("rect", { x: x1, y, width: x2 - x1, height: level.height, fill: resolveColor(themeAppearance(level.altRole && i % 2 ? level.altRole : level.fillRole)), stroke: "#fff" }), el("text", { x: (x1 + x2) / 2, y: y + level.height / 2, "dominant-baseline": "middle", "text-anchor": "middle", class: level.cls }, v[0])); }); y += level.height + (n < visibleLevels().length - 1 ? 2 : 0); }); drawTimelineGrid(secondaryGridTimelineLevel.disabled ? "" : secondaryGridTimelineLevel.value, planningData.theme.grid.secondary); drawTimelineGrid(primaryGridTimelineLevel.disabled ? "" : primaryGridTimelineLevel.value, planningData.theme.grid.primary); planningData.overlays.forEach(drawOverlayHandle); renderStackingGroup(planningData.milestones, planningData.items); planningData.lanes.forEach(lane => { if (lane._hiddenByCompact) return; const bg = lane.backgroundColor ?? lane.background; if (bg && (lane.backgroundOpacity ?? 1) > 0) svg.appendChild(el("rect", { x: geometry.left, y: lane._y, width: geometry.timelineW, height: lane._h, fill: resolveColor(bg), "fill-opacity": lane.backgroundOpacity ?? 1, "pointer-events": "none" })); if (lane.key !== "change") { const g = group("lane", lane, null, 43); g.appendChild(el("rect", { x: 14, y: lane._y, width: 58, height: lane._h, fill: resolveColor(lane.labelColor, resolveColor("@primaryStrong")), class: "planning-shape" })); const label = el("g", { transform: `translate(44 ${lane._y + lane._h / 2}) rotate(-90)` }); textLines(label, lane.label, 0, -4, "lane-label", 18); g.appendChild(label); svg.appendChild(g); } renderStackingGroup(lane.items, lane.milestones, lane); }); planningData.overlays.forEach(drawOverlay); planningData.milestones.forEach(drawMilestoneVerticalLine); planningData.lanes.filter(lane => !lane._hiddenByCompact).forEach(lane => lane.milestones.forEach(drawMilestoneVerticalLine)); const showSelectedDateDependencies = Boolean(selection && ["phase", "task", "global-milestone", "lane-milestone"].includes(selection.type) && editorSectionOpen("Informations")); if (dateDependenciesToggle.checked || showSelectedDateDependencies) drawDateDependencies(!dateDependenciesToggle.checked); const today = dateIso(); if (todayLineToggle.checked && today >= planningData.range.start && today <= planningData.range.end) svg.appendChild(el("line", { x1: x(today), y1: 0, x2: x(today), y2: geometry.H, stroke: resolveColor(themeAppearance("todayLine")), "stroke-width": 2, "pointer-events": "none" })); }
+function drawCalendarShading(predicate, display) {
+  if (display.mode !== "shade") return;
+  let start = null, cursor = planningData.range.start;
+  const paint = end => { if (!start) return; const x1 = x(start), x2 = x(end); if (x2 > x1) svg.appendChild(el("rect", { x: x1, y: geometry.timelineTop, width: x2 - x1, height: geometry.timelineBottom - geometry.timelineTop, fill: resolveColor(display.color), "fill-opacity": display.opacity, "pointer-events": "none" })); start = null; };
+  while (cursor <= planningData.range.end) { const next = dateIso(new Date(new Date(`${cursor}T12:00:00`).getTime() + 86400000)); if (predicate(cursor)) start ||= cursor; else paint(cursor); cursor = next; }
+  paint(planningData.range.end);
+}
+function drawWorkCalendarShading() {
+  const calendar = planningData.workCalendar, extraDaysOff = new Set(calendar.daysOff.map(day => day.date));
+  drawCalendarShading(weeklyDayOff, calendar.weeklyDaysOffDisplay);
+  // Le statut hebdomadaire prévaut : un jour férié qui tombe un week-end ne
+  // reçoit pas un second calque ni la couleur des jours supplémentaires.
+  drawCalendarShading(date => extraDaysOff.has(date) && !weeklyDayOff(date), calendar.daysOffDisplay);
+}
+function render() { setup(); svg.innerHTML = ""; const timeline = planningData.timeline, exportOpacity = Math.max(0, Math.min(1, Number(timeline.backgroundOpacity) || 0)); svg.appendChild(el("rect", { x: 0, y: 0, width: geometry.W, height: geometry.H, fill: resolveColor(timeline.backgroundColor, resolveColor("@surface")), "fill-opacity": 1, "data-export-opacity": exportOpacity, class: "planning-background", "pointer-events": "none" })); let y = geometry.top; visibleLevels().forEach((level, n) => { const p = periods(level.key); p.slice(0, -1).forEach((v, i) => { const x1 = x(v[1]), x2 = x(p[i + 1][1]); svg.append(el("rect", { x: x1, y, width: x2 - x1, height: level.height, fill: resolveColor(themeAppearance(level.altRole && i % 2 ? level.altRole : level.fillRole)), stroke: "#fff" }), el("text", { x: (x1 + x2) / 2, y: y + level.height / 2, "dominant-baseline": "middle", "text-anchor": "middle", class: level.cls }, v[0])); }); y += level.height + (n < visibleLevels().length - 1 ? 2 : 0); }); drawTimelineGrid(secondaryGridTimelineLevel.disabled ? "" : secondaryGridTimelineLevel.value, planningData.theme.grid.secondary); drawTimelineGrid(primaryGridTimelineLevel.disabled ? "" : primaryGridTimelineLevel.value, planningData.theme.grid.primary); drawWorkCalendarShading(); planningData.overlays.forEach(drawOverlayHandle); renderStackingGroup(planningData.milestones, planningData.items); planningData.lanes.forEach(lane => { if (lane._hiddenByCompact) return; const bg = lane.backgroundColor ?? lane.background; if (bg && (lane.backgroundOpacity ?? 1) > 0) svg.appendChild(el("rect", { x: geometry.left, y: lane._y, width: geometry.timelineW, height: lane._h, fill: resolveColor(bg), "fill-opacity": lane.backgroundOpacity ?? 1, "pointer-events": "none" })); if (lane.key !== "change") { const g = group("lane", lane, null, 43); g.appendChild(el("rect", { x: 14, y: lane._y, width: 58, height: lane._h, fill: resolveColor(lane.labelColor, resolveColor("@primaryStrong")), class: "planning-shape" })); const label = el("g", { transform: `translate(44 ${lane._y + lane._h / 2}) rotate(-90)` }); textLines(label, lane.label, 0, -4, "lane-label", 18); g.appendChild(label); svg.appendChild(g); } renderStackingGroup(lane.items, lane.milestones, lane); }); planningData.overlays.forEach(drawOverlay); planningData.milestones.forEach(drawMilestoneVerticalLine); planningData.lanes.filter(lane => !lane._hiddenByCompact).forEach(lane => lane.milestones.forEach(drawMilestoneVerticalLine)); const showSelectedDateDependencies = Boolean(selection && ["phase", "task", "global-milestone", "lane-milestone"].includes(selection.type) && editorSectionOpen("Informations")); if (dateDependenciesToggle.checked || showSelectedDateDependencies) drawDateDependencies(!dateDependenciesToggle.checked); const today = dateIso(); if (todayLineToggle.checked && today >= planningData.range.start && today <= planningData.range.end) svg.appendChild(el("line", { x1: x(today), y1: 0, x2: x(today), y2: geometry.H, stroke: resolveColor(themeAppearance("todayLine")), "stroke-width": 2, "pointer-events": "none" })); }
 
 function current() { if (!selection) return null; if (selection.type === "global-milestone") return { object: planningData.milestones.find(v => v.id === selection.itemId) }; if (selection.type === "overlay") return { object: planningData.overlays.find(v => v.id === selection.itemId) }; if (["phase", "task"].includes(selection.type) && !selection.laneId) return { object: planningData.items.find(v => v.id === selection.itemId), lane: null }; const lane = planningData.lanes.find(v => v.id === (selection.laneId || selection.itemId)); if (!lane) return null; if (selection.type === "lane") return { object: lane, lane }; return { object: (selection.type === "lane-milestone" ? lane.milestones : lane.items).find(v => v.id === selection.itemId), lane }; }
 function color(v) { return resolveColor(v); }
@@ -978,6 +1016,19 @@ function normalise(data) {
   if (typeof data.timeline.trimEmptyLanes !== "boolean") data.timeline.trimEmptyLanes = defaults.trimEmptyLanes;
   if (!/^#[0-9a-f]{6}$/i.test(data.timeline.backgroundColor || "") && !/^@[A-Za-z][A-Za-z0-9]*$/.test(data.timeline.backgroundColor || "")) data.timeline.backgroundColor = defaults.backgroundColor;
   data.timeline.backgroundOpacity = Math.max(0, Math.min(1, Number.isFinite(Number(data.timeline.backgroundOpacity)) ? Number(data.timeline.backgroundOpacity) : defaults.backgroundOpacity));
+  const calendarDefaults = defaultWorkCalendar();
+  data.workCalendar ||= {};
+  const requestedWorkingDays = Array.isArray(data.workCalendar.workingDays) ? data.workCalendar.workingDays.map(Number).filter(day => Number.isInteger(day) && day >= 0 && day <= 6) : calendarDefaults.workingDays;
+  data.workCalendar.workingDays = [...new Set(requestedWorkingDays)].sort((a, b) => a - b);
+  if (!data.workCalendar.workingDays.length) data.workCalendar.workingDays = calendarDefaults.workingDays;
+  data.workCalendar.daysOff = Array.isArray(data.workCalendar.daysOff) ? data.workCalendar.daysOff.filter(day => /^\d{4}-\d{2}-\d{2}$/.test(day?.date || "")).map(day => ({ date: day.date, label: typeof day.label === "string" ? day.label : "" })) : [];
+  ["weeklyDaysOffDisplay", "daysOffDisplay"].forEach(key => {
+    const display = { ...calendarDefaults[key], ...(data.workCalendar[key] || {}) };
+    if (!["none", "shade", ...(key === "weeklyDaysOffDisplay" ? ["hide"] : [])].includes(display.mode)) display.mode = calendarDefaults[key].mode;
+    if (!/^#[0-9a-f]{6}$/i.test(display.color || "") && !/^@[A-Za-z][A-Za-z0-9]*$/.test(display.color || "")) display.color = calendarDefaults[key].color;
+    display.opacity = Math.max(0, Math.min(1, Number.isFinite(Number(display.opacity)) ? Number(display.opacity) : calendarDefaults[key].opacity));
+    data.workCalendar[key] = display;
+  });
   if (!data.itemTypes.task) data.itemTypes.task = clone(emptyPlanning().itemTypes.task);
   const normaliseMilestone = milestone => {
     if ("zOrder" in milestone && !Number.isFinite(Number(milestone.zOrder))) delete milestone.zOrder;
@@ -1197,6 +1248,7 @@ const baseRenderEditor = () => { originalBaseRenderEditor(); compactColorInputs(
 renderEditor = function () {
   if (selection?.type === "timeline") return renderTimelineEditor();
   if (selection?.type === "theme") return renderThemeEditor();
+  if (selection?.type === "work-calendar") return renderWorkCalendarEditor();
   restoreTimelineControls();
   const found = current();
   if (!found?.object || !["phase", "task"].includes(selection.type)) return baseRenderEditor();
@@ -1307,6 +1359,56 @@ function updateTimelineBackground(key, value) {
   planningData.timeline[key] = key === "backgroundOpacity" ? Math.max(0, Math.min(1, Number(value) || 0)) : value;
   markTimelineChange();
   render();
+}
+function updateWorkCalendar() { markTimelineChange(); render(); }
+function frenchHolidays(year) {
+  // Jours fériés légaux de France métropolitaine (hors spécificités locales).
+  const easter = new Date(year, 2, 21), a = year % 19, b = Math.floor(year / 100), c = year % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+  easter.setMonth(Math.floor((h + l - 7 * m + 114) / 31) - 1, (h + l - 7 * m + 114) % 31 + 1);
+  const relative = (days, label) => ({ date: dateIso(new Date(easter.getTime() + days * 86400000)), label });
+  return [
+    { date: `${year}-01-01`, label: "Jour de l’an" }, relative(1, "Lundi de Pâques"), { date: `${year}-05-01`, label: "Fête du Travail" }, { date: `${year}-05-08`, label: "Victoire 1945" }, relative(39, "Ascension"), relative(50, "Lundi de Pentecôte"), { date: `${year}-07-14`, label: "Fête nationale" }, { date: `${year}-08-15`, label: "Assomption" }, { date: `${year}-11-01`, label: "Toussaint" }, { date: `${year}-11-11`, label: "Armistice 1918" }, { date: `${year}-12-25`, label: "Noël" }
+  ];
+}
+function calendarDisplayControls(title, key, allowHide = false) {
+  const display = planningData.workCalendar[key];
+  const mode = input("Affichage", `${key}-mode`, display.mode, "select", [["none", "Ne rien changer"], ...(allowHide ? [["hide", "Masquer du planning"]] : []), ["shade", "Griser dans le planning"]]);
+  mode.querySelector("select").onchange = event => { display.mode = event.target.value; updateWorkCalendar(); renderWorkCalendarEditor(); };
+  const color = colorPicker("Couleur du gris", display.color, value => { display.color = value; updateWorkCalendar(); });
+  const opacity = input("Opacité (0 à 1)", `${key}-opacity`, display.opacity, "number");
+  const opacityInput = opacity.querySelector("input"); opacityInput.min = "0"; opacityInput.max = "1"; opacityInput.step = "0.01"; opacityInput.oninput = event => { display.opacity = Math.max(0, Math.min(1, Number(event.target.value) || 0)); updateWorkCalendar(); };
+  return section(title, [mode, ...(display.mode === "shade" ? [fieldGrid(color, opacity)] : [])], false);
+}
+function renderWorkCalendarEditor() {
+  editor.innerHTML = "";
+  const card = document.createElement("div"); card.className = "editor-card";
+  const top = document.createElement("div"); top.className = "editor-heading"; top.append(document.createTextNode("Jours travaillés"));
+  const close = document.createElement("button"); close.textContent = "×"; close.title = "Fermer"; close.onclick = clear; top.appendChild(close); card.appendChild(top);
+  const intro = document.createElement("p"); intro.className = "impact-note"; intro.textContent = "Définissez les jours travaillés habituels et les exceptions. Les réglages d’affichage sont indépendants.";
+  const weekdays = [[1, "Lundi"], [2, "Mardi"], [3, "Mercredi"], [4, "Jeudi"], [5, "Vendredi"], [6, "Samedi"], [0, "Dimanche"]].map(([day, label]) => {
+    const control = input(label, `working-day-${day}`, planningData.workCalendar.workingDays.includes(day), "checkbox");
+    control.querySelector("input").onchange = event => { const days = planningData.workCalendar.workingDays.filter(value => value !== day); if (event.target.checked) days.push(day); if (!days.length) { event.target.checked = true; return alert("Choisissez au moins un jour travaillé."); } planningData.workCalendar.workingDays = days.sort((a, b) => a - b); updateWorkCalendar(); renderWorkCalendarEditor(); };
+    return control;
+  });
+  card.append(section("Semaine de travail", [intro, fieldGrid(...weekdays)]));
+  const table = document.createElement("table"); table.className = "days-off-table";
+  const head = document.createElement("thead"); head.innerHTML = "<tr><th>Date</th><th>Libellé (facultatif)</th><th aria-label=\"Actions\"></th></tr>"; table.appendChild(head);
+  const body = document.createElement("tbody");
+  planningData.workCalendar.daysOff.forEach((day, index) => {
+    const row = document.createElement("tr"), date = document.createElement("input"), label = document.createElement("input"), remove = document.createElement("button"), action = document.createElement("td");
+    date.type = "date"; date.value = day.date; date.onchange = () => { if (date.value) { day.date = date.value; updateWorkCalendar(); } };
+    label.type = "text"; label.value = day.label; label.placeholder = "Ex. fermeture"; label.oninput = () => { day.label = label.value; updateWorkCalendar(); };
+    remove.type = "button"; remove.className = "delete-object"; remove.textContent = "×"; remove.title = "Supprimer ce jour"; remove.onclick = () => { planningData.workCalendar.daysOff.splice(index, 1); updateWorkCalendar(); renderWorkCalendarEditor(); };
+    const dateCell = document.createElement("td"), labelCell = document.createElement("td"); dateCell.appendChild(date); labelCell.appendChild(label); action.appendChild(remove); row.append(dateCell, labelCell, action); body.appendChild(row);
+  });
+  table.appendChild(body);
+  const add = document.createElement("button"); add.type = "button"; add.textContent = "Ajouter un jour"; add.onclick = () => { planningData.workCalendar.daysOff.push({ date: planningData.range.start, label: "" }); updateWorkCalendar(); renderWorkCalendarEditor(); };
+  const importHolidays = document.createElement("button"); importHolidays.type = "button"; importHolidays.textContent = "Importer les jours fériés français"; importHolidays.title = "Ajoute les jours fériés légaux de France métropolitaine sur toute la période du planning"; importHolidays.onclick = () => { const bounds = planningDateBounds(), years = Array.from({ length: Number(bounds.last.slice(0, 4)) - Number(bounds.first.slice(0, 4)) + 1 }, (_, index) => Number(bounds.first.slice(0, 4)) + index); const existing = new Set(planningData.workCalendar.daysOff.map(day => day.date)); years.flatMap(frenchHolidays).filter(day => day.date >= bounds.first && day.date <= bounds.last && !existing.has(day.date)).forEach(day => planningData.workCalendar.daysOff.push(day)); planningData.workCalendar.daysOff.sort((a, b) => a.date.localeCompare(b.date)); updateWorkCalendar(); renderWorkCalendarEditor(); };
+  const actions = document.createElement("div"); actions.className = "days-off-actions"; actions.append(add, importHolidays);
+  card.append(section("Jours fériés", [table, actions]));
+  card.append(calendarDisplayControls("Affichage des week-ends", "weeklyDaysOffDisplay", true));
+  card.append(calendarDisplayControls("Affichage des jours fériés", "daysOffDisplay"));
+  editor.appendChild(card); layout();
 }
 function renderTimelineEditor() {
   editor.innerHTML = "";
@@ -1494,6 +1596,7 @@ svg.ondblclick = event => {
   addPlanningObject("item", { lane, date: dateAtX(local.x), yOffset: local.y - lane._y - (lane.paddingTop ?? 0) });
 };
 themeButton.onclick = () => { selection = { type: "theme" }; renderEditor(); };
+workingDaysButton.onclick = () => { selection = { type: "work-calendar" }; renderEditor(); };
 readSavedPlans();
 const startingPlan = savedPlans.find(plan => plan.id === activePlanId);
 applyPlanning(startingPlan?.data || emptyPlanning(), { activeId: startingPlan?.id || null });

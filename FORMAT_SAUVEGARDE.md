@@ -113,6 +113,7 @@ Ce fichier peut être enregistré, par exemple, sous `mon-planning.json` puis im
 | `items` | tableau | Non | Éléments sans lane, affichés au-dessus des lanes. Par défaut : `[]`. |
 | `milestones` | tableau | Non | Jalons globaux, affichés au-dessus des lanes. Par défaut : `[]`. |
 | `overlays` | tableau | Non | Bandes colorées verticales couvrant la zone des lanes. Par défaut : `[]`. |
+| `workCalendar` | objet | Non | Jours travaillés, jours non travaillés supplémentaires et leur affichage. Par défaut : lundi à vendredi, sans exception ni surbrillance. |
 | `itemTypes` | objet | Non | Styles partagés des éléments. Le style `task` est ajouté automatiquement s'il est absent. |
 | `theme` | objet | Non | Palette du planning. Absente, elle est complétée avec la palette Océan. |
 | `monthLocale` | chaîne | Non | Locale des libellés de mois et de trimestres, par exemple `"fr-FR"` ou `"en-US"`. Par défaut : `"fr-FR"`. Les trimestres s’affichent sans année (`T1` en français, `Q1` en anglais). |
@@ -139,6 +140,10 @@ Toutes ces propriétés sont optionnelles. Les valeurs par défaut affichent les
 | `trimEmptyLanes` | booléen | `true` | Mode « Ajuster les lanes au contenu visible » : supprime seulement le vide avant et après le contenu visible d’une lane, et masque les lanes sans objet visible dans la période. Les espacements entre éléments visibles restent inchangés. Exclusif avec `compactMode` depuis l’interface. |
 | `backgroundColor` | couleur | `"#ffffff"` | Couleur de fond affichée dans l’éditeur. |
 | `backgroundOpacity` | nombre | `0` | Opacité du fond dans les exports SVG et PNG (`0` rend le fond transparent). La couleur reste visible dans l’éditeur pour faciliter le travail. |
+
+### `workCalendar`
+
+`workingDays` est un tableau de numéros de jours JavaScript (`0` pour dimanche, `1` pour lundi, jusqu’à `6` pour samedi) ; sa valeur par défaut est `[1, 2, 3, 4, 5]`. `daysOff` est un tableau d’objets `{ "date": "AAAA-MM-JJ", "label": "…" }`, où `label` est facultatif. `weeklyDaysOffDisplay` et `daysOffDisplay` contiennent chacun `mode` (`none` ou `shade`, avec en plus `hide` pour `weeklyDaysOffDisplay`), `color` (couleur hexadécimale ou rôle de thème tel que `"@neutral"`) et `opacity` (de `0` à `1`).
 
 ### `range`
 
