@@ -674,8 +674,11 @@ function group(type, object, lane, center) {
   });
   return g;
 }
-function chevron(x1, y, w, h) { const x2 = x1 + w; return `M ${x1} ${y} L ${x2 - 11} ${y} L ${x2} ${y + h / 2} L ${x2 - 11} ${y + h} L ${x1} ${y + h} Z`; }
-function drawItem(lane, item) { const resolvedStart = resolvedDate(item, "start"), resolvedEnd = resolvedDate(item, "end"); if (resolvedEnd < planningData.range.start || resolvedStart > planningData.range.end) return; const s = style(item), start = resolvedStart < planningData.range.start ? planningData.range.start : resolvedStart, endBoundary = resolvedEnd >= planningData.range.end ? rangeEndBoundary() : addDays(resolvedEnd, 1), x1 = x(start), w = Math.max(4, x(endBoundary) - x1), h = itemHeight(item), y = itemTop(item, lane), type = item.type?.startsWith("task") ? "task" : "phase", g = group(type, item, lane, x1 + w / 2), attrs = { fill: resolveColor(s.fill, resolveColor("@primarySoft")), stroke: s.stroke === "none" ? "none" : resolveColor(s.stroke), "stroke-width": s.strokeWidth ?? 0, "fill-opacity": s.fillOpacity, class: "planning-shape" }, shape = s.shape === "chevron" ? el("path", { ...attrs, d: chevron(x1, y, w, h) }) : el("rect", { ...attrs, x: x1, y, width: w, height: h }); if (s.strokeDasharray) shape.setAttribute("stroke-dasharray", s.strokeDasharray); g.appendChild(shape); const lines = (item.label || "").split("\n"); textLines(g, lines, x1 + w / 2, y + h / 2 - (lines.length - 1) * 6 + 4, s.textClass || "item-label", s.lineHeight ?? 12, s.textColor && resolveColor(s.textColor)); svg.appendChild(g); }
+function chevronDepth(width, height, angle, doubleEnded = false) { const radians = Math.max(30, Math.min(150, Number(angle) || 110)) * Math.PI / 180, depth = height / (2 * Math.tan(radians / 2)); return Math.min(Math.max(0, depth), doubleEnded ? width / 2 : width); }
+function chevron(x1, y, w, h, angle) { const x2 = x1 + w, depth = chevronDepth(w, h, angle); return `M ${x1} ${y} L ${x2 - depth} ${y} L ${x2} ${y + h / 2} L ${x2 - depth} ${y + h} L ${x1} ${y + h} Z`; }
+function doubleChevron(x1, y, w, h, angle) { const x2 = x1 + w, depth = chevronDepth(w, h, angle, true); return `M ${x1 - depth} ${y} H ${x2 - depth} L ${x2} ${y + h / 2} L ${x2 - depth} ${y + h} H ${x1 - depth} L ${x1} ${y + h / 2} Z`; }
+function bevelledRect(x, y, width, height, bevel) { const b = Math.min(Math.max(0, bevel), width / 2, height / 2); return `M ${x + b} ${y} H ${x + width - b} L ${x + width} ${y + b} V ${y + height - b} L ${x + width - b} ${y + height} H ${x + b} L ${x} ${y + height - b} V ${y + b} Z`; }
+function drawItem(lane, item) { const resolvedStart = resolvedDate(item, "start"), resolvedEnd = resolvedDate(item, "end"); if (resolvedEnd < planningData.range.start || resolvedStart > planningData.range.end) return; const s = style(item), start = resolvedStart < planningData.range.start ? planningData.range.start : resolvedStart, endBoundary = resolvedEnd >= planningData.range.end ? rangeEndBoundary() : addDays(resolvedEnd, 1), x1 = x(start), w = Math.max(4, x(endBoundary) - x1), h = itemHeight(item), y = itemTop(item, lane), type = item.type?.startsWith("task") ? "task" : "phase", g = group(type, item, lane, x1 + w / 2), attrs = { fill: resolveColor(s.fill, resolveColor("@primarySoft")), stroke: s.stroke === "none" ? "none" : resolveColor(s.stroke), "stroke-width": s.strokeWidth ?? 0, "fill-opacity": s.fillOpacity, class: "planning-shape" }, shape = s.shape === "chevron" ? el("path", { ...attrs, d: chevron(x1, y, w, h, s.chevronAngle) }) : s.shape === "doubleChevron" ? el("path", { ...attrs, d: doubleChevron(x1, y, w, h, s.chevronAngle) }) : s.shape === "bevel" ? el("path", { ...attrs, d: bevelledRect(x1, y, w, h, Number(s.bevelSize) || 0) }) : el("rect", { ...attrs, x: x1, y, width: w, height: h, rx: s.shape === "roundedRect" ? Math.min(Math.max(0, Number(s.cornerRadius) || 0), w / 2, h / 2) : null, ry: s.shape === "roundedRect" ? Math.min(Math.max(0, Number(s.cornerRadius) || 0), w / 2, h / 2) : null }); if (s.strokeDasharray) shape.setAttribute("stroke-dasharray", s.strokeDasharray); g.appendChild(shape); const lines = (item.label || "").split("\n"); textLines(g, lines, x1 + w / 2, y + h / 2 - (lines.length - 1) * 6 + 4, s.textClass || "item-label", s.lineHeight ?? 12, s.textColor && resolveColor(s.textColor)); svg.appendChild(g); }
 function milestoneLines(item, key, fallbackKey) { const value = item[key] ?? (fallbackKey ? item[fallbackKey] : undefined); if (value == null || value === "") return []; return Array.isArray(value) ? value : String(value).split("\n"); }
 function milestoneSize(item) { return Math.max(8, Math.min(80, Number(item.size) || 18)); }
 function milestoneHeight(item) { return Math.max(10, milestoneLines(item, "label", "title").length * 14 + milestoneLines(item, "sub").length * 12 + 2 + Math.max(0, milestoneSize(item) - 18)); }
@@ -1024,7 +1027,7 @@ function moveLane(direction) {
   render();
   renderEditor();
 }
-function update(key, value) { const found = current(); if (!found?.object) return; const o = found.object, previous = o[key]; if (["yOffset", "h", "backgroundOpacity", "opacity", "size", "lineWidth", "minHeight", "paddingTop", "paddingBottom"].includes(key)) value = value === "" ? 0 : Number(value); if (["minHeight", "paddingTop", "paddingBottom"].includes(key)) value = Math.max(0, value || 0); if (key === "size") value = Math.max(8, Math.min(80, value || 8)); if (key === "lineWidth") value = Math.max(1, Math.min(12, value || 1)); if (key === "label" && selection.type === "lane") o.label = value.split("\n"); else if (key === "title") o.title = value.split("\n"); else if (key === "outline") { o.stroke = value ? (o.stroke === "none" ? "#1aa79f" : o.stroke || "#1aa79f") : "none"; o.strokeWidth = value ? (o.strokeWidth || 1.4) : 0; } else if (key === "dashed") o.strokeDasharray = value ? "5 4" : ""; else o[key] = value; if (["start", "end"].includes(key) && resolvedDate(o, "start") > resolvedDate(o, "end")) { o[key] = previous; return alert("La date de début doit être antérieure ou égale à la date de fin."); } isDirty = true; importedVersion = false; status(); render(); }
+function update(key, value) { const found = current(); if (!found?.object) return; const o = found.object, previous = o[key]; if (["yOffset", "h", "backgroundOpacity", "opacity", "size", "lineWidth", "minHeight", "paddingTop", "paddingBottom", "cornerRadius", "bevelSize", "chevronAngle"].includes(key)) value = value === "" ? 0 : Number(value); if (["minHeight", "paddingTop", "paddingBottom", "cornerRadius", "bevelSize"].includes(key)) value = Math.max(0, value || 0); if (key === "chevronAngle") value = Math.max(30, Math.min(150, value || 110)); if (key === "size") value = Math.max(8, Math.min(80, value || 8)); if (key === "lineWidth") value = Math.max(1, Math.min(12, value || 1)); if (key === "label" && selection.type === "lane") o.label = value.split("\n"); else if (key === "title") o.title = value.split("\n"); else if (key === "outline") { o.stroke = value ? (o.stroke === "none" ? "#1aa79f" : o.stroke || "#1aa79f") : "none"; o.strokeWidth = value ? (o.strokeWidth || 1.4) : 0; } else if (key === "dashed") o.strokeDasharray = value ? "5 4" : ""; else o[key] = value; if (["start", "end"].includes(key) && resolvedDate(o, "start") > resolvedDate(o, "end")) { o[key] = previous; return alert("La date de début doit être antérieure ou égale à la date de fin."); } isDirty = true; importedVersion = false; status(); render(); }
 function clear() { referencePicker = null; selection = null; editor.innerHTML = ""; render(); }
 function status() {
   const plan = savedPlans.find(candidate => candidate.id === activePlanId);
@@ -1122,7 +1125,14 @@ function normalise(data) {
     milestone.lineWidth = Math.max(1, Math.min(12, Number.isFinite(Number(milestone.lineWidth)) ? Number(milestone.lineWidth) : 2));
     if (!["solid", "dashed", "dotted"].includes(milestone.lineStyle)) milestone.lineStyle = "solid";
   };
+  const normaliseItemStyle = object => {
+    if ("shape" in object && !["chevron", "doubleChevron", "rect", "roundedRect", "bevel"].includes(object.shape)) object.shape = "rect";
+    ["cornerRadius", "bevelSize"].forEach(key => { if (key in object) object[key] = Math.max(0, Number.isFinite(Number(object[key])) ? Number(object[key]) : 0); });
+    if ("chevronAngle" in object) object.chevronAngle = Math.max(30, Math.min(150, Number.isFinite(Number(object.chevronAngle)) ? Number(object.chevronAngle) : 110));
+  };
+  Object.values(data.itemTypes).forEach(normaliseItemStyle);
   const normaliseStacking = object => {
+    normaliseItemStyle(object);
     if ("zOrder" in object && !Number.isFinite(Number(object.zOrder))) delete object.zOrder;
     else if ("zOrder" in object) object.zOrder = Number(object.zOrder);
   };
@@ -1283,9 +1293,16 @@ function markStyleChange() { isDirty = true; importedVersion = false; status(); 
 function updateSharedStyle(type, key, value) {
   const shared = planningData.itemTypes[type];
   if (!shared) return;
+  if (["cornerRadius", "bevelSize"].includes(key)) value = Math.max(0, Number(value) || 0);
+  if (key === "chevronAngle") value = Math.max(30, Math.min(150, Number(value) || 110));
   if (key === "outline") { shared.stroke = value ? (shared.stroke === "none" ? "#1aa79f" : shared.stroke || "#1aa79f") : "none"; shared.strokeWidth = value ? (shared.strokeWidth || 1.4) : 0; }
   else if (key === "dashed") shared.strokeDasharray = value ? "5 4" : "";
-  else shared[key] = value;
+  else {
+    shared[key] = value;
+    if (key === "shape" && value === "roundedRect" && shared.cornerRadius == null) shared.cornerRadius = 6;
+    if (key === "shape" && value === "bevel" && shared.bevelSize == null) shared.bevelSize = 6;
+    if (key === "shape" && ["chevron", "doubleChevron"].includes(value) && shared.chevronAngle == null) shared.chevronAngle = 110;
+  }
   markStyleChange();
 }
 function relativePositionControls(item) {
@@ -1362,12 +1379,17 @@ renderEditor = function () {
   const styleContent = [styleActions];
   if (editingStyleName === activeStyle) {
     const impact = document.createElement("p"); impact.className = "impact-note"; impact.textContent = styleUsageCount(activeStyle) + " élément" + (styleUsageCount(activeStyle) > 1 ? "s seront" : " sera") + " impacté" + (styleUsageCount(activeStyle) > 1 ? "s" : "") + " par la modification de ce style.";
-    styleContent.push(impact, fieldGrid(input("Couleur de fond", "fill", color(shared.fill), "color"), input("Couleur du texte", "textColor", color(shared.textColor), "color")), input("Forme", "shape", shared.shape ?? "rect", "select", [["chevron", "Chevron"], ["rect", "Rectangle"]]), fieldGrid(input("Contour", "outline", hasOutline(shared.stroke), "checkbox"), input("Pointillés", "dashed", Boolean(shared.strokeDasharray), "checkbox")), input("Couleur du contour", "stroke", color(shared.stroke), "color"));
+    const shape = shared.shape ?? "rect";
+    const shapeFields = [input("Forme", "shape", shape, "select", [["chevron", "Chevron"], ["doubleChevron", "Chevron d’enchaînement (emboîté)"], ["rect", "Rectangle"], ["roundedRect", "Rectangle à coins arrondis"], ["bevel", "Rectangle à coins biseautés"]])];
+    if (["chevron", "doubleChevron"].includes(shape)) shapeFields.push(input("Angle des pointes (30 à 150°)", "chevronAngle", shared.chevronAngle ?? 110, "number"));
+    if (shape === "roundedRect") shapeFields.push(input("Rayon d’arrondi des coins (px)", "cornerRadius", shared.cornerRadius ?? 6, "number"));
+    if (shape === "bevel") shapeFields.push(input("Profondeur des biseaux (px)", "bevelSize", shared.bevelSize ?? 6, "number"));
+    styleContent.push(impact, fieldGrid(input("Couleur de fond", "fill", color(shared.fill), "color"), input("Couleur du texte", "textColor", color(shared.textColor), "color")), ...shapeFields, fieldGrid(input("Contour", "outline", hasOutline(shared.stroke), "checkbox"), input("Pointillés", "dashed", Boolean(shared.strokeDasharray), "checkbox")), input("Couleur du contour", "stroke", color(shared.stroke), "color"));
   }
   const sharedStyle = section("Style", styleContent, false);
   card.appendChild(sharedStyle);
-  const styleFields = [...sharedStyle.querySelectorAll("input,select")].filter(node => ["fill", "textColor", "shape", "outline", "dashed", "stroke"].includes(node.dataset.key));
-  styleFields.forEach(node => { const listener = () => updateSharedStyle(activeStyle, node.dataset.key, node.type === "checkbox" ? node.checked : node.value); node.oninput = listener; node.onchange = listener; });
+  const styleFields = [...sharedStyle.querySelectorAll("input,select")].filter(node => ["fill", "textColor", "shape", "cornerRadius", "bevelSize", "chevronAngle", "outline", "dashed", "stroke"].includes(node.dataset.key));
+  styleFields.forEach(node => { const listener = () => updateSharedStyle(activeStyle, node.dataset.key, node.type === "checkbox" ? node.checked : node.value); node.oninput = listener; node.onchange = () => { listener(); if (node.dataset.key === "shape") renderEditor(); }; });
   const stack = stackingControls(); if (stack) card.appendChild(stack);
   const actions = document.createElement("div"); actions.className = "editor-actions";
   const move = document.createElement("button"); move.type = "button"; move.className = "move-editor"; move.textContent = "↔"; move.title = editorSide === "left" ? "Déplacer le panneau à droite" : "Déplacer le panneau à gauche"; move.setAttribute("aria-label", move.title); move.onclick = () => { editorSide = editorSide === "left" ? "right" : "left"; layout(); renderEditor(); };

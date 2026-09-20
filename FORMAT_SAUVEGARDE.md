@@ -242,12 +242,12 @@ Le tableau racine `items` accepte le même format. Ces éléments n'ont pas de l
 | `type` | chaîne | Recommandé | Nom d'un style de `itemTypes`. Si le style n'existe pas, l'élément est tout de même rendu avec les valeurs par défaut. |
 | `yOffset` | nombre | Non | Décalage depuis le haut de sa zone utile ; dans une lane, celle-ci commence après `paddingTop`. Pour un élément sans lane, elle commence juste sous la timeline (avec l'espacement `laneGap`). Défaut `0`. |
 | `h` | nombre | Non | Hauteur. Priorité : valeur de l'élément, puis `itemTypes[type].h`, puis `layout.defaultItemHeight`. |
-| `fill`, `fillOpacity`, `stroke`, `strokeWidth`, `strokeDasharray`, `shape`, `textColor`, `textClass`, `lineHeight` | divers | Non | Surcharges locales du style partagé. |
+| `fill`, `fillOpacity`, `stroke`, `strokeWidth`, `strokeDasharray`, `shape`, `cornerRadius`, `bevelSize`, `chevronAngle`, `textColor`, `textClass`, `lineHeight` | divers | Non | Surcharges locales du style partagé. |
 | `zOrder` | nombre | Non | Priorité d’affichage dans la même zone : une valeur plus élevée apparaît au premier plan. Il est ajouté automatiquement lorsqu’on utilise les commandes de superposition. |
 | `relativeTo`, `yOffsetMode` | chaînes | Non | Positionnement vertical relatif à un autre élément de lane. |
 | `dateDependencies`, `dateDurations` | objets | Non | Dates calculées à partir d'autres objets ou de la durée. |
 
-Les valeurs possibles de `shape` sont `"chevron"` et `"rect"`. Toute autre valeur donne un rectangle. `strokeDasharray` accepte une valeur SVG telle que `"5 4"`.
+Les valeurs possibles de `shape` sont `"chevron"`, `"doubleChevron"` (chevron d’enchaînement avec une encoche au début), `"rect"`, `"roundedRect"` (rectangle à coins arrondis) et `"bevel"` (rectangle à coins biseautés). Avec `"doubleChevron"`, la pointe de début reste calée sur la date de début, tandis que les bords de l’encoche se prolongent légèrement à gauche : la pointe de fin du chevron précédent la remplit ainsi exactement. `cornerRadius` définit le rayon des coins arrondis, en pixels ; `bevelSize` définit la taille des biseaux, en pixels. `chevronAngle` définit l’angle des pointes des deux formes en chevron, de 30 à 150 degrés (110 par défaut) : il maintient une même inclinaison quelle que soit la hauteur de l’élément. Les valeurs de rayon et de biseau sont ramenées à zéro si elles sont négatives. Toute autre forme donne un rectangle. `strokeDasharray` accepte une valeur SVG telle que `"5 4"`.
 
 ### Styles partagés (`itemTypes`)
 
