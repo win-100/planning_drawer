@@ -246,7 +246,7 @@ Le tableau racine `items` accepte le même format. Ces éléments n'ont pas de l
 | `fill`, `fillOpacity`, `stroke`, `strokeWidth`, `strokeDasharray`, `shape`, `cornerRadius`, `bevelSize`, `chevronAngle`, `textColor`, `textClass`, `lineHeight` | divers | Non | Surcharges locales du style partagé. |
 | `zOrder` | nombre | Non | Priorité d’affichage dans la même zone : une valeur plus élevée apparaît au premier plan. Il est ajouté automatiquement lorsqu’on utilise les commandes de superposition. |
 | `relativeTo`, `yOffsetMode` | chaînes | Non | Positionnement vertical relatif à un autre élément de lane. |
-| `dateDependencies`, `dateDurations` | objets | Non | Dates calculées à partir d'autres objets ou de la durée. |
+| `dateDependencies`, `dateDurations`, `dateDurationWorkingDays` | objets | Non | Dates calculées à partir d'autres objets ou de la durée. |
 
 Les valeurs possibles de `shape` sont `"chevron"`, `"doubleChevron"` (chevron d’enchaînement avec une encoche au début), `"rect"`, `"roundedRect"` (rectangle à coins arrondis) et `"bevel"` (rectangle à coins biseautés). Avec `"doubleChevron"`, les bords de l’encoche se prolongent légèrement à gauche et sa pointe est décalée de 2 px vers la droite : la pointe de fin du chevron précédent reste visible, sans donner l’impression de passer sous la tâche suivante. `cornerRadius` définit le rayon des coins arrondis, en pixels ; `bevelSize` définit la taille des biseaux, en pixels. `chevronAngle` définit l’angle des pointes des deux formes en chevron, de 30 à 150 degrés (110 par défaut) : il maintient une même inclinaison quelle que soit la hauteur de l’élément. Les valeurs de rayon et de biseau sont ramenées à zéro si elles sont négatives. Toute autre forme donne un rectangle. `strokeDasharray` accepte une valeur SVG telle que `"5 4"`.
 
@@ -330,7 +330,7 @@ Ces mécanismes sont facultatifs. Les références doivent viser un objet ayant 
 
 ### Dates relatives
 
-`dateDependencies` permet de calculer une date depuis une date d'un autre objet. `dateKey` vaut `"start"`, `"end"` ou `"date"` selon l'objet ciblé ; `offsetDays` est un nombre de jours (négatif accepté).
+`dateDependencies` permet de calculer une date depuis une date d'un autre objet. `dateKey` vaut `"start"`, `"end"` ou `"date"` selon l'objet ciblé ; `offsetDays` est un nombre de jours (négatif accepté). Par défaut, le décalage est exprimé en jours ouvrés : il respecte les jours travaillés et les jours fériés configurés dans `workCalendar`. Définissez `"workingDays": false` pour compter tous les jours calendaires.
 
 ```json
 {
@@ -340,17 +340,18 @@ Ces mécanismes sont facultatifs. Les références doivent viser un objet ayant 
   "end": "2026-06-12",
   "type": "task",
   "dateDependencies": {
-    "start": { "objectId": "item-realisation", "dateKey": "end", "offsetDays": 1 }
+    "start": { "objectId": "item-realisation", "dateKey": "end", "offsetDays": 1, "workingDays": true }
   }
 }
 ```
 
-Ici `start` est recalculé au lendemain de la fin de `item-realisation`. La valeur fixe de `start` reste le repli si la cible n'est pas trouvée ou si une boucle est détectée.
+Ici `start` est recalculé au jour ouvré suivant la fin de `item-realisation`. La valeur fixe de `start` reste le repli si la cible n'est pas trouvée ou si une boucle est détectée.
 
-`dateDurations` lie les deux bornes d'un élément ou d'un overlay. Il contient une durée en jours sous la clé de la date à calculer :
+`dateDurations` lie les deux bornes d'un élément ou d'un overlay. Il contient une durée en jours sous la clé de la date à calculer. Les jours ouvrés sont utilisés par défaut ; `dateDurationWorkingDays` permet de choisir le mode pour chaque borne (`false` compte tous les jours calendaires) :
 
 ```json
-"dateDurations": { "end": 10 }
+"dateDurations": { "end": 10 },
+"dateDurationWorkingDays": { "end": true }
 ```
 
 Dans cet exemple, `end` vaut dix jours après `start`. N'utilisez pas simultanément une dépendance et une durée pour une même clé.

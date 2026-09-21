@@ -316,10 +316,43 @@ function dateKeys(object) { return "date" in object ? ["date"] : ["start", "end"
 function dateKeyLabel(key) { return key === "start" ? "Date de début" : key === "end" ? "Date de fin" : "date"; }
 function dateDependency(object, key) { return object.dateDependencies?.[key] || null; }
 function dateDuration(object, key) { return Number.isFinite(Number(object.dateDurations?.[key])) ? Number(object.dateDurations[key]) : null; }
+function dateUsesWorkingDays(object, key) {
+  const dependency = dateDependency(object, key);
+  if (dependency) return dependency.workingDays !== false;
+  return object.dateDurationWorkingDays?.[key] !== false;
+}
 function addDays(date, days) { const result = new Date(`${date}T12:00:00`); result.setDate(result.getDate() + (Number(days) || 0)); return dateIso(result); }
 function daysBetweenDates(from, to) {
   if (!from || !to) return 0;
   return Math.round((new Date(`${to}T12:00:00`) - new Date(`${from}T12:00:00`)) / 86400000);
+}
+function isWorkingDay(date) { return !weeklyDayOff(date) && !(planningData.workCalendar.daysOff || []).some(day => day.date === date); }
+function closestWorkingDay(date) {
+  if (isWorkingDay(date)) return date;
+  for (let distance = 1; ; distance++) {
+    const before = addDays(date, -distance), after = addDays(date, distance);
+    if (isWorkingDay(before)) return before;
+    if (isWorkingDay(after)) return after;
+  }
+}
+function addWorkingDays(date, days) {
+  let cursor = closestWorkingDay(date), remaining = Math.abs(Number(days) || 0), direction = Number(days) < 0 ? -1 : 1;
+  while (remaining--) {
+    do cursor = addDays(cursor, direction); while (!isWorkingDay(cursor));
+  }
+  return cursor;
+}
+function dateOffsetBetween(from, to, workingDays) {
+  if (!workingDays) return daysBetweenDates(from, to);
+  const start = closestWorkingDay(from), end = closestWorkingDay(to);
+  if (start === end) return 0;
+  const direction = start < end ? 1 : -1;
+  let cursor = start, count = 0;
+  while (cursor !== end) {
+    cursor = addWorkingDays(cursor, direction);
+    count += direction;
+  }
+  return count;
 }
 function currentDateSpan(object) {
   const start = resolvedDate(object, "start"), end = resolvedDate(object, "end");
@@ -337,12 +370,13 @@ function resolvedDate(object, key, visiting = new Set()) {
   const next = new Set(visiting); next.add(node);
   if (target && dateKeys(target.item).includes(targetKey)) {
     const base = resolvedDate(target.item, targetKey, next);
-    return base ? addDays(base, dependency.offsetDays) : fallback;
+    return base ? (dependency.workingDays !== false ? addWorkingDays(base, dependency.offsetDays) : addDays(base, dependency.offsetDays)) : fallback;
   }
   if (duration != null && dateKeys(object).length === 2) {
     const otherKey = key === "start" ? "end" : "start";
     const base = resolvedDate(object, otherKey, next);
-    return base ? addDays(base, key === "start" ? -duration : duration) : fallback;
+    const offset = key === "start" ? -duration : duration;
+    return base ? (dateUsesWorkingDays(object, key) ? addWorkingDays(base, offset) : addDays(base, offset)) : fallback;
   }
   return fallback;
 }
@@ -648,8 +682,9 @@ function group(type, object, lane, center) {
       if (source) {
         const sourceDate = referencePicker.sourceDate ?? resolvedDate(source, key);
         const targetDate = resolvedDate(object, targetKey);
+        const workingDays = referencePicker.workingDays !== false;
         source.dateDependencies ||= {};
-        source.dateDependencies[key] = { objectId: object.id, dateKey: targetKey, offsetDays: daysBetweenDates(targetDate, sourceDate) };
+        source.dateDependencies[key] = { objectId: object.id, dateKey: targetKey, offsetDays: dateOffsetBetween(targetDate, sourceDate, workingDays), workingDays };
         isDirty = true; importedVersion = false; status();
       }
       referencePicker = null; render(); renderEditor(); return;
@@ -947,15 +982,37 @@ function changeDateDuration(object, key, duration) {
   object.dateDependencies && delete object.dateDependencies[key];
   if (object.dateDependencies && !Object.keys(object.dateDependencies).length) delete object.dateDependencies;
   object.dateDurations ||= {};
+  object.dateDurationWorkingDays ||= {};
+  if (typeof object.dateDurationWorkingDays[key] !== "boolean") object.dateDurationWorkingDays[key] = true;
   delete object.dateDurations[otherKey];
+  delete object.dateDurationWorkingDays[otherKey];
   object.dateDurations[key] = Math.max(0, Number(duration) || 0);
   referencePicker = null; isDirty = true; importedVersion = false; status(); render(); renderEditor();
+}
+function changeDateDependencyWorkingDays(object, key, workingDays) {
+  const dependency = dateDependency(object, key), target = dependency && objectById(dependency.objectId);
+  if (!dependency || !target) return;
+  const currentDate = resolvedDate(object, key), targetDate = resolvedDate(target.item, dependency.dateKey);
+  const preservedDate = workingDays ? closestWorkingDay(currentDate) : currentDate;
+  changeDateDependency(object, key, { ...dependency, workingDays, offsetDays: dateOffsetBetween(targetDate, preservedDate, workingDays) });
+}
+function changeDateDurationWorkingDays(object, key, workingDays) {
+  const duration = dateDuration(object, key);
+  if (duration == null) return;
+  const otherKey = key === "start" ? "end" : "start", otherDate = resolvedDate(object, otherKey), currentDate = resolvedDate(object, key);
+  const preservedDate = workingDays ? closestWorkingDay(currentDate) : currentDate;
+  const nextDuration = Math.max(0, key === "start" ? dateOffsetBetween(preservedDate, otherDate, workingDays) : dateOffsetBetween(otherDate, preservedDate, workingDays));
+  object.dateDurationWorkingDays ||= {};
+  object.dateDurationWorkingDays[key] = workingDays;
+  changeDateDuration(object, key, nextDuration);
 }
 function setDateFixed(object, key) {
   object.dateDependencies && delete object.dateDependencies[key];
   object.dateDurations && delete object.dateDurations[key];
+  object.dateDurationWorkingDays && delete object.dateDurationWorkingDays[key];
   if (object.dateDependencies && !Object.keys(object.dateDependencies).length) delete object.dateDependencies;
   if (object.dateDurations && !Object.keys(object.dateDurations).length) delete object.dateDurations;
+  if (object.dateDurationWorkingDays && !Object.keys(object.dateDurationWorkingDays).length) delete object.dateDurationWorkingDays;
   referencePicker = null; isDirty = true; importedVersion = false; status(); render(); renderEditor();
 }
 function dateDependencyControl(object, key, label) {
@@ -972,7 +1029,13 @@ function dateDependencyControl(object, key, label) {
   const mode = input("Type", "date-mode", duration != null ? "duration" : dependency || picking ? "variable" : "fixed", "select", modes);
   mode.querySelector("select").onchange = event => {
     if (event.target.value === "fixed") setDateFixed(object, key);
-    else if (event.target.value === "duration") changeDateDuration(object, key, duration ?? currentDateSpan(object));
+    else if (event.target.value === "duration") {
+      const workingDays = dependency?.workingDays !== false;
+      object.dateDurationWorkingDays ||= {};
+      object.dateDurationWorkingDays[key] = workingDays;
+      const otherKey = key === "start" ? "end" : "start", currentDate = resolvedDate(object, key), otherDate = resolvedDate(object, otherKey);
+      changeDateDuration(object, key, Math.max(0, key === "start" ? dateOffsetBetween(currentDate, otherDate, workingDays) : dateOffsetBetween(otherDate, currentDate, workingDays)));
+    }
     else if (target) renderEditor();
     else {
       // Keep the choice visible while the user is picking the reference on the planning.
@@ -981,8 +1044,11 @@ function dateDependencyControl(object, key, label) {
       object.dateDurations && delete object.dateDurations[key];
       if (object.dateDurations && !Object.keys(object.dateDurations).length) delete object.dateDurations;
       object.dateDependencies ||= {};
-      object.dateDependencies[key] = { objectId: "", dateKey: "", offsetDays: 0 };
-      referencePicker = { kind: "date", sourceId: object.id, key, sourceDate };
+      const workingDays = duration != null ? dateUsesWorkingDays(object, key) : true;
+      delete object.dateDurationWorkingDays?.[key];
+      if (object.dateDurationWorkingDays && !Object.keys(object.dateDurationWorkingDays).length) delete object.dateDurationWorkingDays;
+      object.dateDependencies[key] = { objectId: "", dateKey: "", offsetDays: 0, workingDays };
+      referencePicker = { kind: "date", sourceId: object.id, key, sourceDate, workingDays };
       isDirty = true; importedVersion = false; status(); render(); renderEditor();
     }
   };
@@ -991,7 +1057,9 @@ function dateDependencyControl(object, key, label) {
     const durationField = input("Durée (jours)", "date-duration", duration, "number");
     durationField.querySelector("input").min = "0";
     durationField.querySelector("input").onchange = event => changeDateDuration(object, key, event.target.value);
-    wrap.appendChild(durationField);
+    const workingDays = input("Jours ouvrés", "date-duration-working-days", dateUsesWorkingDays(object, key), "checkbox");
+    workingDays.querySelector("input").onchange = event => changeDateDurationWorkingDays(object, key, event.target.checked);
+    wrap.appendChild(fieldGrid(durationField, workingDays));
     return wrap;
   }
   if (!dependency && !picking) return wrap;
@@ -1006,11 +1074,13 @@ function dateDependencyControl(object, key, label) {
     anchor.querySelector("select").onchange = event => {
       const currentDate = resolvedDate(object, key);
       const targetDate = resolvedDate(target.item, event.target.value);
-      changeDateDependency(object, key, { ...dependency, dateKey: event.target.value, offsetDays: daysBetweenDates(targetDate, currentDate) });
+      changeDateDependency(object, key, { ...dependency, dateKey: event.target.value, offsetDays: dateOffsetBetween(targetDate, currentDate, dependency.workingDays !== false) });
     };
     const offset = input("Décalage (jours)", "date-offset", dependency.offsetDays ?? 0, "number");
     offset.querySelector("input").onchange = event => changeDateDependency(object, key, { ...dependency, offsetDays: Number(event.target.value) || 0 });
-    wrap.append(fieldGrid(anchor, offset));
+    const workingDays = input("Jours ouvrés", "date-offset-working-days", dependency.workingDays !== false, "checkbox");
+    workingDays.querySelector("input").onchange = event => changeDateDependencyWorkingDays(object, key, event.target.checked);
+    wrap.append(anchor, fieldGrid(offset, workingDays));
   }
   return wrap;
 }
@@ -1142,6 +1212,33 @@ function normalise(data) {
   data.items.forEach(normaliseStacking);
   data.milestones.forEach(normaliseMilestone);
   data.lanes.forEach(lane => { lane.items ||= []; lane.milestones ||= []; lane.minHeight = Math.max(0, Number.isFinite(Number(lane.minHeight)) ? Number(lane.minHeight) : 80); lane.paddingTop = Math.max(0, Number.isFinite(Number(lane.paddingTop)) ? Number(lane.paddingTop) : 5); lane.paddingBottom = Math.max(0, Number.isFinite(Number(lane.paddingBottom)) ? Number(lane.paddingBottom) : 5); lane.items.forEach(normaliseStacking); lane.milestones.forEach(normaliseMilestone); });
+  const normaliseDateCalculations = object => {
+    const keys = dateKeys(object);
+    if (object.dateDependencies && typeof object.dateDependencies === "object") {
+      Object.keys(object.dateDependencies).forEach(key => {
+        const dependency = object.dateDependencies[key];
+        if (!keys.includes(key) || !dependency || typeof dependency !== "object") { delete object.dateDependencies[key]; return; }
+        dependency.offsetDays = Number.isFinite(Number(dependency.offsetDays)) ? Number(dependency.offsetDays) : 0;
+        dependency.workingDays = dependency.workingDays !== false;
+      });
+      if (!Object.keys(object.dateDependencies).length) delete object.dateDependencies;
+    }
+    if (object.dateDurations && typeof object.dateDurations === "object") {
+      object.dateDurationWorkingDays ||= {};
+      Object.keys(object.dateDurations).forEach(key => {
+        if (!keys.includes(key) || !Number.isFinite(Number(object.dateDurations[key]))) { delete object.dateDurations[key]; delete object.dateDurationWorkingDays[key]; return; }
+        object.dateDurations[key] = Math.max(0, Number(object.dateDurations[key]));
+        object.dateDurationWorkingDays[key] = object.dateDurationWorkingDays[key] !== false;
+      });
+      if (!Object.keys(object.dateDurations).length) { delete object.dateDurations; delete object.dateDurationWorkingDays; }
+    } else delete object.dateDurationWorkingDays;
+  };
+  [
+    ...data.items,
+    ...data.milestones,
+    ...data.overlays,
+    ...data.lanes.flatMap(lane => [...lane.items, ...lane.milestones])
+  ].forEach(normaliseDateCalculations);
   ids(data);
   return data;
 }
