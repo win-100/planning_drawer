@@ -144,6 +144,7 @@ Toutes ces propriétés sont optionnelles. Les valeurs par défaut affichent les
 | `gridPrimaryLevel` | chaîne | `"month"` | Périodicité du quadrillage vertical principal. |
 | `gridSecondaryLevel` | chaîne | `""` | Périodicité du quadrillage vertical secondaire ; une chaîne vide le masque. |
 | `showTodayLine` | booléen | `true` | Affiche la ligne d’aujourd’hui. |
+| `todayLineIncludesTimeline` | booléen | `true` | Lorsque la ligne d’aujourd’hui est affichée, la prolonge sur la frise temporelle. |
 | `compactMode` | booléen | `false` | Adapte l’affichage à la période sans modifier les espacements ni les coordonnées enregistrées. Lorsqu’une référence de positionnement est hors période, elle est temporairement remplacée par sa première référence visible ; le plus grand décalage de la chaîne est conservé. Si toute la chaîne est hors période, une ancre virtuelle en haut de lane remplace la référence. |
 | `trimEmptyLanes` | booléen | `true` | Mode « Ajuster les lanes au contenu visible » : supprime seulement le vide avant et après le contenu visible d’une lane, et masque les lanes sans objet visible dans la période. Les espacements entre éléments visibles restent inchangés. Exclusif avec `compactMode` depuis l’interface. |
 | `backgroundColor` | couleur | `"#ffffff"` | Couleur de fond affichée dans l’éditeur. |
@@ -292,6 +293,7 @@ Les jalons globaux se placent dans `milestones` à la racine. Les jalons d'une l
   "shape": "diamond",
   "size": 24,
   "showVerticalLine": true,
+  "verticalLineIncludesTimeline": true,
   "lineColor": "#ef2d20",
   "lineWidth": 2,
   "lineStyle": "dashed"
@@ -303,7 +305,7 @@ Les jalons globaux se placent dans `milestones` à la racine. Les jalons d'une l
 | Global | `title` : tableau de chaînes | `id`, `date`, `color`, `yOffset`, optionnellement `sub` (tableau de sous-libellés), `shape`, `size` et `zOrder`. |
 | Dans une lane | `label` : chaîne (les `\n` sont acceptés) | `id`, `date`, `color`, `yOffset`, optionnellement `shape`, `size` et `zOrder`. |
 
-`shape` peut être `star` (valeur par défaut), `circle`, `square`, `diamond`, `plus` ou `multiply`. `size` est la taille du symbole en pixels, entre 8 et 80 (18 par défaut). Activez `showVerticalLine` pour tracer une ligne verticale sur toute la hauteur du planning à la date du jalon. `lineColor` (par défaut, la couleur du jalon), `lineWidth` (1 à 12 px, 2 par défaut) et `lineStyle` (`solid`, `dashed` ou `dotted`) en définissent l’apparence.
+`shape` peut être `star` (valeur par défaut), `circle`, `square`, `diamond`, `plus` ou `multiply`. `size` est la taille du symbole en pixels, entre 8 et 80 (18 par défaut). Activez `showVerticalLine` pour tracer une ligne verticale sur toute la hauteur du planning à la date du jalon. `verticalLineIncludesTimeline` (par défaut `true`) la prolonge sur la frise temporelle ; sinon elle commence sous celle-ci. `lineColor` (par défaut, la couleur du jalon), `lineWidth` (1 à 12 px, 2 par défaut) et `lineStyle` (`solid`, `dashed` ou `dotted`) en définissent l’apparence.
 
 ## Overlays
 
